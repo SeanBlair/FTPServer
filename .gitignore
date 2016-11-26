@@ -1,6 +1,8 @@
 # C development
 c/http_client
 
+CSftp
+
 *.o
 *.ko
 *.obj
