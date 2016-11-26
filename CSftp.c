@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
     socklen_t sin_size;
 
-    
+
     char s[INET6_ADDRSTRLEN];
 
     struct sockaddr_storage their_addr; // connector's address information
@@ -115,13 +115,16 @@ int main(int argc, char **argv) {
     freeaddrinfo(servinfo); // all done with this structure
 
     if (p == NULL)  {
-        fprintf(stderr, "server2: failed to bind\n");
+        fprintf(stderr, "CSftp: failed to bind\n");
         exit(1);
     }
 
 
     // listen call..
     // maybe where thread should be started.
+    // should maybe extract all following code to helper titled listening();
+    // with all required parameters...
+
     if (listen(sockfd, BACKLOG) == -1) {
         perror("listen");
         exit(1);
@@ -142,7 +145,7 @@ int main(int argc, char **argv) {
         inet_ntop(their_addr.ss_family,
             get_in_addr((struct sockaddr *)&their_addr),
             s, sizeof s);
-        printf("server2: got connection from %s\n", s);
+        printf("CSftp: got connection from %s\n", s);
 
         if (send(new_fd, "230 User logged in, proceed.\n", 30, 0) == -1) {
             perror("send");
@@ -158,7 +161,7 @@ int main(int argc, char **argv) {
         buf[numbytes] = '\0';
 
         // printing client message #1
-        printf("server2: received %s",buf);
+        printf("CSftp: received %s",buf);
 
         // read from console... 
         //char *line = NULL;
