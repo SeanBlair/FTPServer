@@ -5,23 +5,19 @@
 #include "dir.h"
 #include "usage.h"
 
-
-
-
 ///////  from demo server  ////////
 #include <string.h>
 #include <netdb.h>  
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-
 #include <netinet/in.h>
-  
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
 
-
+// my addition
+#include <stdbool.h>
 
 
 
@@ -39,6 +35,45 @@ void *get_in_addr(struct sockaddr *sa)
     }
 
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+
+void listening(int sockfd) {
+    int tcpfd;
+
+    socklen_t sin_size;
+
+    struct sockaddr_storage their_addr; // connector's address information
+    
+    char s[INET6_ADDRSTRLEN];
+    
+    if (listen(sockfd, BACKLOG) == -1) {
+        perror("listen");
+        exit(1);
+    }
+
+
+    printf("CSftp: waiting for connections...\n");
+
+
+
+    while(1) {  // main accept() loop
+        sin_size = sizeof their_addr;
+        tcpfd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        if (tcpfd == -1) {
+            perror("accept");
+            continue;
+        }
+
+        inet_ntop(their_addr.ss_family,
+            get_in_addr((struct sockaddr *)&their_addr),
+            s, sizeof s);
+        printf("CSftp: got connection from %s\n", s);
+
+        if (send(tcpfd, "230 User logged in, proceed.\n", 30, 0) == -1) {
+            perror("send");
+        }
+    }
 }
 
 
@@ -125,59 +160,64 @@ int main(int argc, char **argv) {
     // should maybe extract all following code to helper titled listening();
     // with all required parameters...
 
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
-        exit(1);
-    }
+    listening(sockfd);
 
 
-    printf("CSftp: waiting for connections...\n");
 
 
-    while(1) {  // main accept() loop
-        sin_size = sizeof their_addr;
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
-            continue;
-        }
-
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
-        printf("CSftp: got connection from %s\n", s);
-
-        if (send(new_fd, "230 User logged in, proceed.\n", 30, 0) == -1) {
-            perror("send");
-        }
+    // if (listen(sockfd, BACKLOG) == -1) {
+    //     perror("listen");
+    //     exit(1);
+    // }
 
 
-        // reading client message #1
-        if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
-            perror("recv");
-            exit(1);
-        }
+    // printf("CSftp: waiting for connections...\n");
 
-        buf[numbytes] = '\0';
 
-        // printing client message #1
-        printf("CSftp: received %s",buf);
+    // while(1) {  // main accept() loop
+    //     sin_size = sizeof their_addr;
+    //     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+    //     if (new_fd == -1) {
+    //         perror("accept");
+    //         continue;
+    //     }
 
-        // read from console... 
-        //char *line = NULL;
-        if (getline(&line, &size, stdin) == -1) {
-            printf("No line\n");
-        } else {
-            // send console message to client
-            char str[MAXDATASIZE];
-            strcpy(str, "500 ");
-            strcat(str, line); 
-            if (send(new_fd, str, (strlen(line) + 4), 0) == -1) {
-            perror("send");
-            }
-        }
+    //     inet_ntop(their_addr.ss_family,
+    //         get_in_addr((struct sockaddr *)&their_addr),
+    //         s, sizeof s);
+    //     printf("CSftp: got connection from %s\n", s);
 
-    }
+    //     if (send(new_fd, "230 User logged in, proceed.\n", 30, 0) == -1) {
+    //         perror("send");
+    //     }
+
+
+    //     // reading client message #1
+    //     if ((numbytes = recv(new_fd, buf, MAXDATASIZE-1, 0)) == -1) {
+    //         perror("recv");
+    //         exit(1);
+    //     }
+
+    //     buf[numbytes] = '\0';
+
+    //     // printing client message #1
+    //     printf("CSftp: received %s",buf);
+
+    //     // read from console... 
+    //     //char *line = NULL;
+    //     if (getline(&line, &size, stdin) == -1) {
+    //         printf("No line\n");
+    //     } else {
+    //         // send console message to client
+    //         char str[MAXDATASIZE];
+    //         strcpy(str, "500 ");
+    //         strcat(str, line); 
+    //         if (send(new_fd, str, (strlen(line) + 4), 0) == -1) {
+    //         perror("send");
+    //         }
+    //     }
+
+    // }
 
 
 
