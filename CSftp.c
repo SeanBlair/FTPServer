@@ -1,7 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
-
 #include "dir.h"
 #include "usage.h"
 
@@ -19,12 +18,8 @@
 // my addition
 #include <stdbool.h>
 
-
-
 #define BACKLOG 10      // how many pending connections queue will hold TODO (look into)
 #define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
-
-
 
 
 // the message state of each thread
@@ -36,6 +31,7 @@ void messageState(int fd) {
     char buf[MAXDATASIZE];
     char str[MAXDATASIZE];
 
+    // TODO: what to send first?
     if (send(fd, "220 Service ready for new user. :)\n", 36, 0) == -1) {
         perror("send");
     }
@@ -45,10 +41,7 @@ void messageState(int fd) {
         printf("CSftp: in message state\n");
 
                 // reading client message
-        if ((numbytes = recv(fd, buf, MAXDATASIZE-1, 0)) == -1) {
-
-            printf("Inside recv and numbytes == -1..\n");
-            
+        if ((numbytes = recv(fd, buf, MAXDATASIZE-1, 0)) == -1) {            
             perror("recv");
             exit(1);
         }
