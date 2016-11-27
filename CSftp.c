@@ -54,6 +54,8 @@ void messageState(int fd) {
         // TODO: look into if required or not 
         //memset(&buf[0], 0, sizeof(buf));
 
+        // doSomethingVerySmartNow();
+
         strcpy(str, "500 I will keep answering... i'm a machine :(\n");
 
         if (send(fd, str, 46, 0) == -1) {
