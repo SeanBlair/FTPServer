@@ -17,6 +17,7 @@
 
 // my addition
 #include <stdbool.h>
+#include <ctype.h>
 
 #define BACKLOG 10      // how many pending connections queue will hold TODO (look into)
 #define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
@@ -26,10 +27,12 @@
 // returns when "quit"  ??
 void messageState(int fd) {
 
-    int numbytes;
+    int numbytes, i;
 
     char buf[MAXDATASIZE];
-    char str[MAXDATASIZE];
+    char response[MAXDATASIZE];
+    char command[6];  // for holding client command like "USER "
+
 
     // TODO: what to send first?
     if (send(fd, "220 Service ready for new user. :)\n", 36, 0) == -1) {
@@ -37,6 +40,9 @@ void messageState(int fd) {
     }
 
     while(1) {  // main accept() loop
+
+        // this required to flush response array after previous send.
+        memset(&response[0], 0, sizeof(response));
 
         printf("CSftp: in message state\n");
 
@@ -50,21 +56,61 @@ void messageState(int fd) {
 
         printf("CSftp: received:  %s",buf);
 
-        // it is clearing or flushing buffer (i think)
-        // TODO: look into if required or not 
-        //memset(&buf[0], 0, sizeof(buf));
+        // parse first 5 characters of buf.
+        // force them to upper case
+        // if then else on them because switching might not work...
+        for (i = 0; i < 5; i++) {
+            command[i] = toupper( buf[i]);
+        }
 
-        // doSomethingVerySmartNow();
+        // terminate string in order to call strncmp();
+        command[5] = '\0';
 
-        strcpy(str, "500 I will keep answering... i'm a machine :(\n");
+        printf("CSftp: received the following command:  %s\n",command);
 
-        if (send(fd, str, 46, 0) == -1) {
+        // command recognizer/validator
+        if (strncmp(command, "USER ", 5) == 0) 
+        {
+            strcpy(response, "200 Command okay.\n");
+        } 
+        else if ((strncmp(command, "QUIT ", 5) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n");
+        }
+        else if ((strncmp(command, "TYPE ", 5) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n"); 
+        }
+        else if ((strncmp(command, "MODE ", 5) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n"); 
+        }
+        else if ((strncmp(command, "STRU ", 5) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n"); 
+        }
+        else if ((strncmp(command, "RETR ", 5) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n"); 
+        }
+        else if ((strncmp(command, "PASV ", 5) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n"); 
+        }
+        else if ((strncmp(command, "NLST ", 5) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n"); 
+        }     
+        else {
+            strcpy(response, "500 Syntax error, command unrecognized.\n");
+        }
+
+        if (send(fd, response, MAXDATASIZE, 0) == -1) {
             perror("send");
         }
 
-        printf("CSftp: sent    :  %s",str);
+        printf("CSftp: sent    :  %s",response);
     }
-
 }
 
 
