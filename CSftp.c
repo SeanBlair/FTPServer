@@ -32,10 +32,12 @@ void messageState(int fd) {
     char buf[MAXDATASIZE];
     char response[MAXDATASIZE];
     char command[6];  // for holding client command like "USER "
+    char argument[MAXDATASIZE];
+    bool loggedIn = false;
 
 
     // TODO: what to send first?
-    if (send(fd, "220 Service ready for new user. :)\n", 36, 0) == -1) {
+    if (send(fd, "220 Service ready for new user.\n", 33, 0) == -1) {
         perror("send");
     }
 
@@ -43,6 +45,9 @@ void messageState(int fd) {
 
         // this required to flush response array after previous send.
         memset(&response[0], 0, sizeof(response));
+
+        // this required to flush argument array after previous send.
+        memset(&argument[0], 0, sizeof(argument));
 
         printf("CSftp: in message state\n");
 
@@ -56,9 +61,13 @@ void messageState(int fd) {
 
         printf("CSftp: received:  %s",buf);
 
+        //printf("The received string is %u character long. \n", (unsigned) strlen(buf));
+
         // parse first 5 characters of buf.
         // force them to upper case
         // if then else on them because switching might not work...
+        
+        // strncpy(command, buf, 5);
         for (i = 0; i < 5; i++) {
             command[i] = toupper( buf[i]);
         }
@@ -68,10 +77,31 @@ void messageState(int fd) {
 
         printf("CSftp: received the following command:  %s\n",command);
 
+
+        // TODO: parse the argument as well.
+
         // command recognizer/validator
         if (strncmp(command, "USER ", 5) == 0) 
         {
-            strcpy(response, "200 Command okay.\n");
+            // argument is buf minus the command
+            strncpy(argument, buf + 5, 20);
+         
+            int argumentLength = strlen(argument);
+
+            // this checks for equality of first 5 characters, this checks that there were no more characters.
+            if ((strncmp(argument, "cs317", 5) == 0) && argumentLength == 7) {
+                loggedIn = true;
+                strcpy(response, "230 User logged in, proceed.\n");    
+            }
+
+            // this is because the argumen is \t\n
+            else if (argumentLength == 2) {
+                strcpy(response, "501 Syntax error in parameters or arguments.\n");   
+            }
+            else {
+                strcpy(response, "332 Need account for login.\n");
+            }
+             
         } 
         else if ((strncmp(command, "QUIT ", 5) == 0)) 
         {
