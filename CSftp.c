@@ -38,8 +38,11 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 
-void listening(int sockfd) {
-    int tcpfd;
+void listening(int socket_fd) {
+    int tcpfd, numbytes;
+
+    char buf[MAXDATASIZE];
+    char str[MAXDATASIZE];
 
     socklen_t sin_size;
 
@@ -47,32 +50,68 @@ void listening(int sockfd) {
     
     char s[INET6_ADDRSTRLEN];
     
-    if (listen(sockfd, BACKLOG) == -1) {
+    if (listen(socket_fd, BACKLOG) == -1) {
         perror("listen");
         exit(1);
     }
 
 
     printf("CSftp: waiting for connections...\n");
+    printf("next line..\n");
 
 
+    sin_size = sizeof their_addr;
+    tcpfd = accept(socket_fd, (struct sockaddr *)&their_addr, &sin_size);
+    if (tcpfd == -1) {
+        perror("accept");
+        //continue;  //might need to put this code in loop...
+    }
+
+    inet_ntop(their_addr.ss_family,
+        get_in_addr((struct sockaddr *)&their_addr),
+        s, sizeof s);
+    printf("server2: got connection from %s\n", s);
+
+        // inet_ntop(their_addr.ss_family,
+        //     get_in_addr((struct sockaddr *)&their_addr),
+        //     s, sizeof s);
+        // printf("CSftp: got connection from %s\n", s);
+    printf("About to send 230\n");
+
+    if (send(tcpfd, "230 User logged in, proceed :)\n", 30, 0) == -1) {
+        printf("error when sending 230\n");
+        perror("send");
+    }
+
+    printf("sent 230 without error\n");
+
+
+    printf("Outside while loop..\n");
 
     while(1) {  // main accept() loop
-        sin_size = sizeof their_addr;
-        tcpfd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        if (tcpfd == -1) {
-            perror("accept");
-            continue;
+
+        printf("Inside while loop..\n");
+
+                // reading client message
+        if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) {
+
+            printf("Inside recv and numbytes == -1..\n");
+            
+            perror("recv");
+            exit(1);
         }
 
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
-        printf("CSftp: got connection from %s\n", s);
+        buf[numbytes] = '\0';
 
-        if (send(tcpfd, "230 User logged in, proceed.\n", 30, 0) == -1) {
+        // printing client message #1
+        printf("CSftp: received %s",buf);
+
+        memset(&buf[0], 0, sizeof(buf));
+
+    
+        if (send(tcpfd, "500 I will keep answering... i'm a machine :(", 46, 0) == -1) {
             perror("send");
-        }
+        }    
     }
 }
 
