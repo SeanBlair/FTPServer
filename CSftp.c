@@ -25,16 +25,59 @@
 #define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
 
 
+
+
+// the message state of each thread
+// returns when "quit"  ??
 void messageState(int fd) {
 
-}
-
-void * listening(void * socket_fd) {      // int socket_fd
-    
-    int tcpfd, numbytes;
+    int numbytes;
 
     char buf[MAXDATASIZE];
     char str[MAXDATASIZE];
+
+    if (send(fd, "220 Service ready for new user. :)\n", 36, 0) == -1) {
+        perror("send");
+    }
+
+    while(1) {  // main accept() loop
+
+        printf("CSftp: in message state\n");
+
+                // reading client message
+        if ((numbytes = recv(fd, buf, MAXDATASIZE-1, 0)) == -1) {
+
+            printf("Inside recv and numbytes == -1..\n");
+            
+            perror("recv");
+            exit(1);
+        }
+
+        buf[numbytes] = '\0';
+
+        printf("CSftp: received:  %s",buf);
+
+        // it is clearing or flushing buffer (i think)
+        // TODO: look into if required or not 
+        //memset(&buf[0], 0, sizeof(buf));
+
+        strcpy(str, "500 I will keep answering... i'm a machine :(\n");
+
+        if (send(fd, str, 46, 0) == -1) {
+            perror("send");
+        }
+
+        printf("CSftp: sent    :  %s",str);
+    }
+
+}
+
+
+// the listening state of each thread 
+// no TCP connection with client yet.
+void * listening(void * socket_fd) {      // int socket_fd
+    
+    int tcpfd;
 
     socklen_t sin_size;
 
@@ -54,43 +97,11 @@ void * listening(void * socket_fd) {      // int socket_fd
         //continue;  //TODO: might need to put this code in loop to use the continue...
     }
 
-    // TODO: extract message state to own method
-    //messageState(tcpfd);
+    messageState(tcpfd);
 
-    if (send(tcpfd, "220 Service ready for new user. :)\n", 36, 0) == -1) {
-        perror("send");
-    }
-
-    while(1) {  // main accept() loop
-
-        printf("CSftp: in message state\n");
-
-                // reading client message
-        if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) {
-
-            printf("Inside recv and numbytes == -1..\n");
-            
-            perror("recv");
-            exit(1);
-        }
-
-        buf[numbytes] = '\0';
-
-        printf("CSftp: received:  %s",buf);
-
-        // it is clearing or flushing buffer (i think)
-        // TODO: look into if required or not 
-        //memset(&buf[0], 0, sizeof(buf));
-
-        strcpy(str, "500 I will keep answering... i'm a machine :(\n");
-
-        if (send(tcpfd, str, 46, 0) == -1) {
-            perror("send");
-        }
-
-        printf("CSftp: sent    :  %s",str);
-    }
+    // do something awesome when previous returns?
 }
+
 
 
 int main(int argc, char **argv) {
@@ -99,7 +110,7 @@ int main(int argc, char **argv) {
     int yes=1;   
     int sockfd;
 
-    int rv, numbytes;   // rv == returnValue
+    int rv;   // rv == returnValue
 
     // Check the command line arguments
     if (argc != 2) {
