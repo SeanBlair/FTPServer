@@ -24,14 +24,16 @@
 
 
 // returns true if the given command takes no arguments
-bool isZeroArgs(char * comm) {
+bool isZeroArgs(char * comm) 
+{
     return (strncmp(comm, "QUIT", 4) == 0) || 
-            (strncmp(comm, "PASV", 4) == 0) || 
-            (strncmp(comm, "NLST", 4) == 0);
+        (strncmp(comm, "PASV", 4) == 0) || 
+        (strncmp(comm, "NLST", 4) == 0);
 }
 
 // returns true if the given command takes one argument 
-bool isOneArgs(char * comm) {
+bool isOneArgs(char * comm) 
+{
     return (strncmp(comm, "USER", 4) == 0) || 
             (strncmp(comm, "TYPE", 4) == 0) || 
             (strncmp(comm, "STRU", 4) == 0) ||
@@ -41,15 +43,19 @@ bool isOneArgs(char * comm) {
 
 // returns true if the given comm takes the given argument count
 bool isCorrectArgCount(char * comm, int count) {
-    if (isZeroArgs(comm)) {
+    if (isZeroArgs(comm)) 
+    {
         return count == 0;
-    } else {
+    } 
+    else 
+    {
         return count == 1;
     }
 }
 
 // returns true if command requires to be logged in
-bool needsLogin(char * comm) {    
+bool needsLogin(char * comm) 
+{    
     return !((strncmp(comm, "QUIT", 4) == 0) || 
         (strncmp(comm, "USER", 4) == 0));
 }
@@ -57,11 +63,14 @@ bool needsLogin(char * comm) {
 // returns true if is valid and supported command
 // Zero argument commands are not accepted with added space, 
 // 1 argument commands are accepted with or without a space.
-bool isValidCommand(char * comm, int totalMessageLength) {
-    if (totalMessageLength == 6) {
+bool isValidCommand(char * comm, int totalMessageLength) 
+{
+    if (totalMessageLength == 6) 
+    {
         return isZeroArgs(comm) || isOneArgs(comm);
     } 
-    else {
+    else 
+    {
         return isOneArgs(comm) && comm[4] == ' ';
     }
 }
@@ -103,7 +112,8 @@ void * messageState(void * socket_fd) {
     // TODO if nothing to do? 
     sin_size = sizeof their_addr;
     tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
-    if (tcpfd == -1) {
+    if (tcpfd == -1) 
+    {
         perror("accept");
         //continue;  // TODO: might need to put this code in loop to use the given continue...??
         // Does it simply wait until there is a connection???
@@ -111,12 +121,14 @@ void * messageState(void * socket_fd) {
     }
 
     // Welcome message to ftp client
-    if (send(tcpfd, "220 Service ready for new user.\n", 33, 0) == -1) {
+    if (send(tcpfd, "220 Service ready for new user.\n", 33, 0) == -1) 
+    {
         perror("send");
     }
 
-    while(1) {  // main accept() loop
-
+    // main accept() loop
+    while(1) 
+    {  
         // flush response array after previous send.
         memset(&response[0], 0, sizeof(response));
 
@@ -129,7 +141,8 @@ void * messageState(void * socket_fd) {
         printf("CSftp: in message state\n");
 
                 // reading client message
-        if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) {            
+        if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) 
+        {            
             perror("recv");
 
             // TODO: What to do here... send message to client???
@@ -143,7 +156,8 @@ void * messageState(void * socket_fd) {
 
         // parse command (first 4 characters of buf).
         // force them to upper case
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < 4; i++) 
+        {
             command[i] = toupper( buf[i]);
         }
 
@@ -152,10 +166,13 @@ void * messageState(void * socket_fd) {
         // Commands that take arguments are accepted
         // with or without a space after, commands that
         // take 0 arguments are not accepted with space after.
-        if (buf[4] == ' ') {
+        if (buf[4] == ' ') 
+        {
             command[4] = ' ';
             command[5] = '\0';  // "USER " 
-        } else {
+        } 
+        else 
+        {
            command[4] = '\0';   // "USER"
         }
 
@@ -168,15 +185,20 @@ void * messageState(void * socket_fd) {
 
         //  minimum length with arg is 7: "USER x" plus '\0'        
         //  (i think CRLF is stripped off by numbytes = recv() -> buf[num[bytes] = '\0')
-        if (bufStringLength < 8) {
+        if (bufStringLength < 8) 
+        {
             argumentCount = 0;
-        } else {
+        } else 
+        {
             // argument = buf minus first 5 characters "USER "
             strncpy(argument, buf + 5, MAXDATASIZE);
             // no spaces in string, therefore only one argument
-            if (strchr(argument, ' ') == NULL) {
+            if (strchr(argument, ' ') == NULL) 
+            {
                 argumentCount = 1;
-            } else {
+            } 
+            else 
+            {
                 // this is equivalent to error, because no command takes 2 args
                 // or could catch an illegal second space after command
                 argumentCount = 2;
@@ -190,20 +212,20 @@ void * messageState(void * socket_fd) {
         // command recognizer/validator
         // need to rethink and possibly refactor. getting messy.
 
-        if (!isValidCommand(command, bufStringLength)) {
+        if (!isValidCommand(command, bufStringLength)) 
+        {
             strcpy(response, "500 Syntax error, command unrecognized. (!isValidCommand)\n");
         }
-        
-        else if (!isCorrectArgCount(command, argumentCount)) {
+        else if (!isCorrectArgCount(command, argumentCount)) 
+        {
             strcpy(response, "501 Syntax error in parameters or arguments. (!isCorrectArgCount)\n");
         }
-        
-        else if (strncmp(command, "QUIT", 4) == 0) {
+        else if (strncmp(command, "QUIT", 4) == 0) 
+        {
             strcpy(response, "221 Service closing control connection.\n"); 
             // TODO return?? with error message??? 
             // or simply return and allow method to continue 
         }
-        
         else if (strncmp(command, "USER", 4) == 0) 
         {       
             if (isLoggedIn) 
@@ -224,32 +246,55 @@ void * messageState(void * socket_fd) {
                 }    
             }            
         } 
-        
-        else if (needsLogin(command) && !isLoggedIn) {
+        else if (needsLogin(command) && !isLoggedIn) 
+        {
             strcpy(response, "530 Not logged in.\n");    
         }
-        
         else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
             char arg =  toupper( argument[0] );
 
             // one character argument followed by CRLF
-            if (strlen(argument) == 3) {
-                if((arg == 'I') || (arg == 'A')) {
+            if (strlen(argument) == 3) 
+            {
+                if((arg == 'I') || (arg == 'A')) 
+                {
                     strcpy(response, "200 Command okay.\n");    
                 }
-                else if ((arg == 'L') || (arg == 'E')) {
+                else if ((arg == 'L') || (arg == 'E')) 
+                {
                     strcpy(response, "504 Command not implemented for that parameter.\n");
-                } else {
+                } 
+                else 
+                {
                     strcpy(response, "501 Syntax error in parameters or arguments.\n");
                 }
-            } else {
+            } 
+            else 
+            {
                 strcpy(response, "501 Syntax error in parameters or arguments.\n");
             }
         }
         else if ((strncmp(command, "MODE", 4) == 0)) 
         {
-            strcpy(response, "200 Command okay.\n"); 
+            char arg = toupper( argument[0] );
+            // one character argument followed by CRLF
+            if (strlen(argument) == 3) 
+            {
+                if(arg == 'S') 
+                {
+                    strcpy(response, "200 Mode set to S.\n");    
+                }
+                else if ((arg == 'B') || (arg == 'C')) {
+                    strcpy(response, "504 Command not implemented for that parameter.\n");
+                } 
+                else {
+                    strcpy(response, "501 Syntax error in parameters or arguments.\n");
+                }
+            } 
+            else {
+                strcpy(response, "501 Syntax error in parameters or arguments.\n");
+            }
         }
         else if ((strncmp(command, "STRU", 4) == 0)) 
         {
@@ -267,11 +312,13 @@ void * messageState(void * socket_fd) {
         {
             strcpy(response, "200 Command okay.\n"); 
         }     
-        else {
+        else 
+        {
             strcpy(response, "500 Syntax error, command unrecognized.\n");
         }
 
-        if (send(tcpfd, response, MAXDATASIZE, 0) == -1) {
+        if (send(tcpfd, response, MAXDATASIZE, 0) == -1) 
+        {
             perror("send");
             // TODO:    What to send client???
         }
@@ -283,10 +330,10 @@ void * messageState(void * socket_fd) {
 
 // the listening state of each thread 
 // no TCP connection with client yet.
-void * listening(void * socket_fd) {      // int socket_fd
-    
-    
-    if (listen( *(int*) socket_fd, BACKLOG) == -1) {
+void * listening(void * socket_fd) 
+{              
+    if (listen( *(int*) socket_fd, BACKLOG) == -1) 
+    {
         perror("listen");
         exit(1);
     }
@@ -314,7 +361,8 @@ void * listening(void * socket_fd) {      // int socket_fd
 
 
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) 
+{
     
     struct addrinfo hints, *servinfo, *p;  // not sure what these for... look in tutorial.
     int yes=1;   
@@ -323,7 +371,8 @@ int main(int argc, char **argv) {
     int rv;   // rv == returnValue
 
     // Check the command line arguments
-    if (argc != 2) {
+    if (argc != 2) 
+    {
       usage(argv[0]);
       return -1;
     }
@@ -335,27 +384,32 @@ int main(int argc, char **argv) {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) 
+    {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
 
     //TODO  set timeout...
     // loop through all the results and bind to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
+    for(p = servinfo; p != NULL; p = p->ai_next) 
+    {
         if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
+                p->ai_protocol)) == -1) 
+        {
             perror("server: socket");
             continue;
         }
-
+        
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                sizeof(int)) == -1) {
+                sizeof(int)) == -1) 
+        {
             perror("setsockopt");
             exit(1);
         }
 
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) 
+        {
             close(sockfd);
             perror("server: bind");
             continue;
@@ -366,7 +420,8 @@ int main(int argc, char **argv) {
 
     freeaddrinfo(servinfo); // all done with this structure
 
-    if (p == NULL)  {
+    if (p == NULL)  
+    {
         fprintf(stderr, "CSftp: failed to bind\n");
         exit(1);
     }
