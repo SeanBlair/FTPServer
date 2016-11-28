@@ -231,7 +231,7 @@ void * messageState(void * socket_fd) {
         
         else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
-            char arg =  argument[0];
+            char arg =  toupper( argument[0] );
 
             // one character argument followed by CRLF
             if (strlen(argument) == 3) {
