@@ -43,10 +43,10 @@ void messageState(int fd) {
 
     while(1) {  // main accept() loop
 
-        // this required to flush response array after previous send.
+        // flush response array after previous send.
         memset(&response[0], 0, sizeof(response));
 
-        // this required to flush argument array after previous send.
+        // flush argument array after previous send.
         memset(&argument[0], 0, sizeof(argument));
 
         printf("CSftp: in message state\n");
@@ -54,9 +54,12 @@ void messageState(int fd) {
                 // reading client message
         if ((numbytes = recv(fd, buf, MAXDATASIZE-1, 0)) == -1) {            
             perror("recv");
+
+            // TODO: What to do here... send message to client???
             exit(1);
         }
 
+        // convert read message into string...
         buf[numbytes] = '\0';
 
         printf("CSftp: received:  %s",buf);
@@ -65,22 +68,19 @@ void messageState(int fd) {
 
         // parse first 5 characters of buf.
         // force them to upper case
-        // if then else on them because switching might not work...
-        
-        // strncpy(command, buf, 5);
         for (i = 0; i < 5; i++) {
             command[i] = toupper( buf[i]);
         }
 
-        // terminate string in order to call strncmp();
+        // convert read command into string...
         command[5] = '\0';
 
-        printf("CSftp: received the following command:  %s\n",command);
-
+        printf("CSftp: received the following command: [%s]\n",command);
 
         // TODO: parse the argument as well.
 
         // command recognizer/validator
+        // need to rethink and possibly refactor. getting messy.
         if (strncmp(command, "USER ", 5) == 0) 
         {
             // argument is buf minus the command
@@ -88,20 +88,21 @@ void messageState(int fd) {
          
             int argumentLength = strlen(argument);
 
-            // this checks for equality of first 5 characters, this checks that there were no more characters.
+            // this checks for equality of first 5 characters, 
+            // and that there were no more characters other than CR LF.
             if ((strncmp(argument, "cs317", 5) == 0) && argumentLength == 7) {
                 loggedIn = true;
                 strcpy(response, "230 User logged in, proceed.\n");    
             }
 
+            // no arguments.
             // this is because the argumen is \t\n
             else if (argumentLength == 2) {
                 strcpy(response, "501 Syntax error in parameters or arguments.\n");   
             }
             else {
                 strcpy(response, "332 Need account for login.\n");
-            }
-             
+            }            
         } 
         else if ((strncmp(command, "QUIT ", 5) == 0)) 
         {
@@ -137,6 +138,7 @@ void messageState(int fd) {
 
         if (send(fd, response, MAXDATASIZE, 0) == -1) {
             perror("send");
+            // TODO:    What to send client???
         }
 
         printf("CSftp: sent    :  %s",response);
