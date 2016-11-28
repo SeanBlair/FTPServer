@@ -69,7 +69,16 @@ bool isValidCommand(char * comm, int totalMessageLength) {
 
 // the message state of each thread
 // TODO returns when "quit"  ??
-void messageState(int fd) {
+void * messageState(void * socket_fd) {
+
+    int tcpfd;
+
+    // TODO rename?
+    socklen_t sin_size;
+
+    struct sockaddr_storage their_addr; // connector's address information
+    
+
 
     int numbytes, i;
     // incoming message vessel
@@ -89,8 +98,20 @@ void messageState(int fd) {
     // true if have successfully called "USER cs317" previously
     bool isLoggedIn = false;
 
-    
-    if (send(fd, "220 Service ready for new user.\n", 33, 0) == -1) {
+
+
+    // TODO this is where Acton reccomended to start the thread...
+    sin_size = sizeof their_addr;
+    tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
+    if (tcpfd == -1) {
+        perror("accept");
+        //continue;  // TODO: might need to put this code in loop to use the given continue...??
+    }
+
+
+
+
+    if (send(tcpfd, "220 Service ready for new user.\n", 33, 0) == -1) {
         perror("send");
     }
 
@@ -107,7 +128,7 @@ void messageState(int fd) {
         printf("CSftp: in message state\n");
 
                 // reading client message
-        if ((numbytes = recv(fd, buf, MAXDATASIZE-1, 0)) == -1) {            
+        if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) {            
             perror("recv");
 
             // TODO: What to do here... send message to client???
@@ -172,20 +193,28 @@ void messageState(int fd) {
         
         else if (strncmp(command, "QUIT", 4) == 0) {
             strcpy(response, "221 Service closing control connection.\n"); 
+            // TODO return?? with error message??? 
+            // or simply return and allow method to continue 
         }
         
         else if (strncmp(command, "USER", 4) == 0) 
-        {         
-            int argumentLength = strlen(argument);
+        {       
+            if (isLoggedIn) 
+            {
+                strcpy(response, "230 User logged in, proceed.\n");
+            }
+            else {
+                int argumentLength = strlen(argument);
 
             // this checks for equality of first 5 characters, 
             // and that there were no more characters other than CR LF.
-            if ((strncmp(argument, "cs317", 5) == 0) && (strlen(argument) == 7)) {
-                isLoggedIn = true;
-                strcpy(response, "230 User logged in, proceed.\n");    
-            }
-            else {
-                strcpy(response, "332 Need account for login.\n");
+                if ((strncmp(argument, "cs317", 5) == 0) && (strlen(argument) == 7)) {
+                    isLoggedIn = true;
+                    strcpy(response, "230 User logged in, proceed.\n");    
+                }
+                else {
+                    strcpy(response, "332 Need account for login.\n");
+                }    
             }            
         } 
         
@@ -235,7 +264,7 @@ void messageState(int fd) {
             strcpy(response, "500 Syntax error, command unrecognized.\n");
         }
 
-        if (send(fd, response, MAXDATASIZE, 0) == -1) {
+        if (send(tcpfd, response, MAXDATASIZE, 0) == -1) {
             perror("send");
             // TODO:    What to send client???
         }
@@ -249,12 +278,6 @@ void messageState(int fd) {
 // no TCP connection with client yet.
 void * listening(void * socket_fd) {      // int socket_fd
     
-    int tcpfd;
-
-    // TODO rename?
-    socklen_t sin_size;
-
-    struct sockaddr_storage their_addr; // connector's address information
     
     if (listen( *(int*) socket_fd, BACKLOG) == -1) {
         perror("listen");
@@ -262,15 +285,20 @@ void * listening(void * socket_fd) {      // int socket_fd
     }
 
     printf("CSftp: in listen state.\n");
-    
-    sin_size = sizeof their_addr;
-    tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
-    if (tcpfd == -1) {
-        perror("accept");
-        //continue;  // TODO: might need to put this code in loop to use the given continue...??
-    }
 
-    messageState(tcpfd);
+
+    
+
+    // // TODO this is where Acton reccomended to start the thread...
+    // sin_size = sizeof their_addr;
+    // tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
+    // if (tcpfd == -1) {
+    //     perror("accept");
+    //     //continue;  // TODO: might need to put this code in loop to use the given continue...??
+    // }
+
+    // TODO start 4 threads
+    messageState(socket_fd);
 
     // TODO
     // do something awesome when previous returns?
@@ -337,7 +365,7 @@ int main(int argc, char **argv) {
     }
 
     // listen call..
-    // maybe where thread should be started.
+    // maybe/maybe not where thread should be started.
     listening(&sockfd);
 
     return 0;
