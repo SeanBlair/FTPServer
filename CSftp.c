@@ -23,39 +23,48 @@
 #define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
 
 
+// returns true if the given command takes no arguments
 bool isZeroArgs(char * comm) {
     return (strncmp(comm, "QUIT", 4) == 0) || 
-    (strncmp(comm, "PASV", 4) == 0) || 
-    (strncmp(comm, "NLST", 4) == 0);
+            (strncmp(comm, "PASV", 4) == 0) || 
+            (strncmp(comm, "NLST", 4) == 0);
 }
 
-bool hasWrongNumberArgs(char * comm, int count) {
+// returns true if the given command takes one argument 
+bool isOneArgs(char * comm) {
+    return (strncmp(comm, "USER", 4) == 0) || 
+            (strncmp(comm, "TYPE", 4) == 0) || 
+            (strncmp(comm, "STRU", 4) == 0) ||
+            (strncmp(comm, "MODE", 4) == 0) || 
+            (strncmp(comm, "RETR", 4) == 0);
+}
+
+// returns true if the given comm takes the given argument count
+bool isCorrectArgCount(char * comm, int count) {
     if (isZeroArgs(comm)) {
-        return count != 0;
+        return count == 0;
     } else {
-        return count != 1;
+        return count == 1;
     }
 }
 
-bool needsLogin(char * comm) {
-    
-    return !((strncmp(comm, "QUIT", 4) == 0) || (strncmp(comm, "USER", 4) == 0));
+// returns true if command requires to be logged in
+bool needsLogin(char * comm) {    
+    return !((strncmp(comm, "QUIT", 4) == 0) || 
+        (strncmp(comm, "USER", 4) == 0));
 }
 
-bool isValidCommand(char * comm, int messageLength) {
-    if (messageLength == 6) {
-        return isZeroArgs(comm);
+// returns true if is valid and supported command
+// Zero argument commands are not accepted with added space, 
+// 1 argument commands are accepted with or without a space.
+bool isValidCommand(char * comm, int totalMessageLength) {
+    if (totalMessageLength == 6) {
+        return isZeroArgs(comm) || isOneArgs(comm);
     } 
     else {
-        return (strncmp(comm, "USER ", 5) == 0) || 
-        (strncmp(comm, "TYPE ", 5) == 0) || 
-        (strncmp(comm, "MODE ", 5) == 0) ||
-        (strncmp(comm, "STRU ", 5) == 0) || 
-        (strncmp(comm, "RETR ", 5) == 0); 
+        return isOneArgs(comm) && comm[4] == ' ';
     }
 }
-
-
 
 
 // the message state of each thread
@@ -67,12 +76,10 @@ void messageState(int fd) {
     char buf[MAXDATASIZE];
     int bufStringLength;
     char response[MAXDATASIZE];
-    char command[6];  // for holding client command like "USER"
+    char command[6];  // for holding client command like either "USER" or "USER "  
     char argument[MAXDATASIZE];
     int argumentCount;
     bool isLoggedIn = false;
-    //bool isValidCommand = false;
-
 
     // TODO: what to send first?
     if (send(fd, "220 Service ready for new user.\n", 33, 0) == -1) {
@@ -104,79 +111,55 @@ void messageState(int fd) {
 
         printf("CSftp: received:  %s",buf);
 
-        //printf("The received string is %u character long. \n", (unsigned) strlen(buf));
-
         // parse first 4 characters of buf.
         // force them to upper case
         for (i = 0; i < 4; i++) {
             command[i] = toupper( buf[i]);
         }
+        // has argument most likely
         if (buf[4] == ' ') {
-            command[4] = buf[4];
-            command[5] = '\0';
+            command[4] = ' ';
+            command[5] = '\0';  // "USER "
         } else {
-           command[4] = '\0';
+           command[4] = '\0';   // "USER"
         }
 
         printf("CSftp: received the following command: [%s]\n",command);
 
-        // TODO: parse the argument as well.
+        
+        // parse the argument
 
         bufStringLength = strlen(buf);
 
-        if (bufStringLength < 9) {
+        //  minimum length with arg is 9: "USER x" plus '\0', '\t', '\n' 
+        if (bufStringLength < 8) {
             argumentCount = 0;
         } else {
+            // argument = buf minus first 5 characters "USER "
             strncpy(argument, buf + 5, MAXDATASIZE);
+            // no spaces in string, therefore only one argument
             if (strchr(argument, ' ') == NULL) {
                 argumentCount = 1;
             } else {
+                // this is equivalent to error, because no command takes 2 args
+                // or could catch an illegal second space after command
                 argumentCount = 2;
             }
         }
 
-        // if (bufStringLength < 6) {
-        //     //isValidCommand = false;
-        //     printf("isValidCommand is false because bufStringLength < 6\n");
-        // }
-        // // quit s
-        // else if (bufStringLength < 9) {
-        //     argumentCount = 0;
-        //     //isValidCommand = bufStringLength == 6; //isZeroArgs(command);
-
-        //     //printf("isValidCommand = bufStringLength == 6\n");
-
-        // } else {
-
-        //     //isValidCommand = (buf[4] == ' ');
-
-        //     //printf("isValidCommand is buf[4] == ' '\n");
-
-        //     if (isValidCommand) {
-        //         // argument is buf minus the command
-        //         strncpy(argument, buf + 5, MAXDATASIZE + 5);
-        //         if (strchr(argument, ' ') != NULL) {
-        //             argumentCount = 2;
-        //         } else {
-        //             if (strlen(argument) > 3) {
-        //                 argumentCount = 1;
-        //             } else {
-        //                 argumentCount = 0;
-        //             }
-        //         }
-        //     }
-        // }
 
         printf("The provided command: %s has %d number of arguments\n", command, argumentCount);      
 
+
         // command recognizer/validator
         // need to rethink and possibly refactor. getting messy.
+
 
         if (!isValidCommand(command, bufStringLength)) {
             strcpy(response, "500 Syntax error, command unrecognized. (!isValidCommand)\n");
         }
         
-        else if (hasWrongNumberArgs(command, argumentCount)) {
+        else if (!isCorrectArgCount(command, argumentCount)) {
             strcpy(response, "501 Syntax error in parameters or arguments.\n");
         }
         else if (strncmp(command, "QUIT", 4) == 0) {
