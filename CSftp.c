@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-#define BACKLOG 10      // how many pending connections queue will hold TODO (look into)
+#define BACKLOG 40      // how many pending connections queue will hold, set higher than needed..
 #define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
 
 
@@ -68,20 +68,28 @@ bool isValidCommand(char * comm, int totalMessageLength) {
 
 
 // the message state of each thread
-// returns when "quit"  ??
+// TODO returns when "quit"  ??
 void messageState(int fd) {
 
     int numbytes, i;
     // incoming message vessel
     char buf[MAXDATASIZE];
+    // current total message string length
     int bufStringLength;
+    // response message vessel
     char response[MAXDATASIZE];
-    char command[6];  // for holding client command like either "USER" or "USER "  
+    // command received : for holding client command. Ex: "USER" or "USER " ('\0' at end)   
+    char command[6];   
+    // for argument (total incoming message, without the first 5 characters)
     char argument[MAXDATASIZE];
+    // do not support arguments with spaces, as 
+    // argument with spaces deemed 2 which is currently unsuported... 
+    // TODO will this be sufficient?
     int argumentCount;
+    // true if have successfully called "USER cs317" previously
     bool isLoggedIn = false;
 
-    // TODO: what to send first?
+    
     if (send(fd, "220 Service ready for new user.\n", 33, 0) == -1) {
         perror("send");
     }
@@ -243,6 +251,7 @@ void * listening(void * socket_fd) {      // int socket_fd
     
     int tcpfd;
 
+    // TODO rename?
     socklen_t sin_size;
 
     struct sockaddr_storage their_addr; // connector's address information
@@ -258,12 +267,14 @@ void * listening(void * socket_fd) {      // int socket_fd
     tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
     if (tcpfd == -1) {
         perror("accept");
-        //continue;  //TODO: might need to put this code in loop to use the continue...
+        //continue;  // TODO: might need to put this code in loop to use the given continue...??
     }
 
     messageState(tcpfd);
 
+    // TODO
     // do something awesome when previous returns?
+    // could return numbers signifying success or errors//
 }
 
 
@@ -294,6 +305,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    //TODO  set timeout...
     // loop through all the results and bind to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) {
         if ((sockfd = socket(p->ai_family, p->ai_socktype,
