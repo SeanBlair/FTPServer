@@ -23,17 +23,55 @@
 #define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
 
 
+bool isZeroArgs(char * comm) {
+    return (strncmp(comm, "QUIT", 4) == 0) || 
+    (strncmp(comm, "PASV", 4) == 0) || 
+    (strncmp(comm, "NLST", 4) == 0);
+}
+
+bool hasWrongNumberArgs(char * comm, int count) {
+    if (isZeroArgs(comm)) {
+        return count != 0;
+    } else {
+        return count != 1;
+    }
+}
+
+bool needsLogin(char * comm) {
+    
+    return !((strncmp(comm, "QUIT", 4) == 0) || (strncmp(comm, "USER", 4) == 0));
+}
+
+bool isValidCommand(char * comm, int messageLength) {
+    if (messageLength == 6) {
+        return isZeroArgs(comm);
+    } 
+    else {
+        return (strncmp(comm, "USER ", 5) == 0) || 
+        (strncmp(comm, "TYPE ", 5) == 0) || 
+        (strncmp(comm, "MODE ", 5) == 0) ||
+        (strncmp(comm, "STRU ", 5) == 0) || 
+        (strncmp(comm, "RETR ", 5) == 0); 
+    }
+}
+
+
+
+
 // the message state of each thread
 // returns when "quit"  ??
 void messageState(int fd) {
 
     int numbytes, i;
-
+    // incoming message vessel
     char buf[MAXDATASIZE];
+    int bufStringLength;
     char response[MAXDATASIZE];
-    char command[6];  // for holding client command like "USER "
+    char command[6];  // for holding client command like "USER"
     char argument[MAXDATASIZE];
-    bool loggedIn = false;
+    int argumentCount;
+    bool isLoggedIn = false;
+    //bool isValidCommand = false;
 
 
     // TODO: what to send first?
@@ -48,6 +86,8 @@ void messageState(int fd) {
 
         // flush argument array after previous send.
         memset(&argument[0], 0, sizeof(argument));
+
+        argumentCount = 0;
 
         printf("CSftp: in message state\n");
 
@@ -66,69 +106,120 @@ void messageState(int fd) {
 
         //printf("The received string is %u character long. \n", (unsigned) strlen(buf));
 
-        // parse first 5 characters of buf.
+        // parse first 4 characters of buf.
         // force them to upper case
-        for (i = 0; i < 5; i++) {
+        for (i = 0; i < 4; i++) {
             command[i] = toupper( buf[i]);
         }
-
-        // convert read command into string...
-        command[5] = '\0';
+        if (buf[4] == ' ') {
+            command[4] = buf[4];
+            command[5] = '\0';
+        } else {
+           command[4] = '\0';
+        }
 
         printf("CSftp: received the following command: [%s]\n",command);
 
         // TODO: parse the argument as well.
 
+        bufStringLength = strlen(buf);
+
+        if (bufStringLength < 9) {
+            argumentCount = 0;
+        } else {
+            strncpy(argument, buf + 5, MAXDATASIZE);
+            if (strchr(argument, ' ') == NULL) {
+                argumentCount = 1;
+            } else {
+                argumentCount = 2;
+            }
+        }
+
+        // if (bufStringLength < 6) {
+        //     //isValidCommand = false;
+        //     printf("isValidCommand is false because bufStringLength < 6\n");
+        // }
+        // // quit s
+        // else if (bufStringLength < 9) {
+        //     argumentCount = 0;
+        //     //isValidCommand = bufStringLength == 6; //isZeroArgs(command);
+
+        //     //printf("isValidCommand = bufStringLength == 6\n");
+
+        // } else {
+
+        //     //isValidCommand = (buf[4] == ' ');
+
+        //     //printf("isValidCommand is buf[4] == ' '\n");
+
+        //     if (isValidCommand) {
+        //         // argument is buf minus the command
+        //         strncpy(argument, buf + 5, MAXDATASIZE + 5);
+        //         if (strchr(argument, ' ') != NULL) {
+        //             argumentCount = 2;
+        //         } else {
+        //             if (strlen(argument) > 3) {
+        //                 argumentCount = 1;
+        //             } else {
+        //                 argumentCount = 0;
+        //             }
+        //         }
+        //     }
+        // }
+
+        printf("The provided command: %s has %d number of arguments\n", command, argumentCount);      
+
         // command recognizer/validator
         // need to rethink and possibly refactor. getting messy.
-        if (strncmp(command, "USER ", 5) == 0) 
-        {
-            // argument is buf minus the command
-            strncpy(argument, buf + 5, 20);
-         
+
+        if (!isValidCommand(command, bufStringLength)) {
+            strcpy(response, "500 Syntax error, command unrecognized. (!isValidCommand)\n");
+        }
+        
+        else if (hasWrongNumberArgs(command, argumentCount)) {
+            strcpy(response, "501 Syntax error in parameters or arguments.\n");
+        }
+        else if (strncmp(command, "QUIT", 4) == 0) {
+            strcpy(response, "221 Service closing control connection.\n"); 
+        }
+        else if (strncmp(command, "USER", 4) == 0) 
+        {         
             int argumentLength = strlen(argument);
 
             // this checks for equality of first 5 characters, 
             // and that there were no more characters other than CR LF.
-            if ((strncmp(argument, "cs317", 5) == 0) && argumentLength == 7) {
-                loggedIn = true;
+            if ((strncmp(argument, "cs317", 5) == 0) && (strlen(argument) == 7)) {
+                isLoggedIn = true;
                 strcpy(response, "230 User logged in, proceed.\n");    
-            }
-
-            // no arguments.
-            // this is because the argumen is \t\n
-            else if (argumentLength == 2) {
-                strcpy(response, "501 Syntax error in parameters or arguments.\n");   
             }
             else {
                 strcpy(response, "332 Need account for login.\n");
             }            
         } 
-        else if ((strncmp(command, "QUIT ", 5) == 0)) 
-        {
-            strcpy(response, "200 Command okay.\n");
+        else if (needsLogin(command) && !isLoggedIn) {
+            strcpy(response, "530 Not logged in.\n");    
         }
-        else if ((strncmp(command, "TYPE ", 5) == 0)) 
-        {
-            strcpy(response, "200 Command okay.\n"); 
-        }
-        else if ((strncmp(command, "MODE ", 5) == 0)) 
+        else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
             strcpy(response, "200 Command okay.\n"); 
         }
-        else if ((strncmp(command, "STRU ", 5) == 0)) 
+        else if ((strncmp(command, "MODE", 4) == 0)) 
         {
             strcpy(response, "200 Command okay.\n"); 
         }
-        else if ((strncmp(command, "RETR ", 5) == 0)) 
+        else if ((strncmp(command, "STRU", 4) == 0)) 
         {
             strcpy(response, "200 Command okay.\n"); 
         }
-        else if ((strncmp(command, "PASV ", 5) == 0)) 
+        else if ((strncmp(command, "RETR", 4) == 0)) 
         {
             strcpy(response, "200 Command okay.\n"); 
         }
-        else if ((strncmp(command, "NLST ", 5) == 0)) 
+        else if ((strncmp(command, "PASV", 4) == 0)) 
+        {
+            strcpy(response, "200 Command okay.\n"); 
+        }
+        else if ((strncmp(command, "NLST", 4) == 0)) 
         {
             strcpy(response, "200 Command okay.\n"); 
         }     
