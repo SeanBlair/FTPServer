@@ -154,17 +154,18 @@ void messageState(int fd) {
         // command recognizer/validator
         // need to rethink and possibly refactor. getting messy.
 
-
         if (!isValidCommand(command, bufStringLength)) {
             strcpy(response, "500 Syntax error, command unrecognized. (!isValidCommand)\n");
         }
         
         else if (!isCorrectArgCount(command, argumentCount)) {
-            strcpy(response, "501 Syntax error in parameters or arguments.\n");
+            strcpy(response, "501 Syntax error in parameters or arguments. (!isCorrectArgCount)\n");
         }
+        
         else if (strncmp(command, "QUIT", 4) == 0) {
             strcpy(response, "221 Service closing control connection.\n"); 
         }
+        
         else if (strncmp(command, "USER", 4) == 0) 
         {         
             int argumentLength = strlen(argument);
@@ -179,12 +180,28 @@ void messageState(int fd) {
                 strcpy(response, "332 Need account for login.\n");
             }            
         } 
+        
         else if (needsLogin(command) && !isLoggedIn) {
             strcpy(response, "530 Not logged in.\n");    
         }
+        
         else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
-            strcpy(response, "200 Command okay.\n"); 
+            char arg =  argument[0];
+
+            // one character argument followed by CRLF
+            if (strlen(argument) == 3) {
+                if((arg == 'I') || (arg == 'A')) {
+                    strcpy(response, "200 Command okay.\n");    
+                }
+                else if ((arg == 'L') || (arg == 'E')) {
+                    strcpy(response, "504 Command not implemented for that parameter.\n");
+                } else {
+                    strcpy(response, "501 Syntax error in parameters or arguments.\n");
+                }
+            } else {
+                strcpy(response, "501 Syntax error in parameters or arguments.\n");
+            }
         }
         else if ((strncmp(command, "MODE", 4) == 0)) 
         {
