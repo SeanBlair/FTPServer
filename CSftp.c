@@ -70,16 +70,16 @@ bool isValidCommand(char * comm, int totalMessageLength) {
 // the message state of each thread
 // TODO returns when "quit"  ??
 void * messageState(void * socket_fd) {
-
+    // this TCP connection
     int tcpfd;
 
-    // TODO rename?
+    // used for accept() call
     socklen_t sin_size;
 
+    // used for accept() call
     struct sockaddr_storage their_addr; // connector's address information
     
-
-
+    // numbytes = bytes received in buf; i = index of buf[] for parser
     int numbytes, i;
     // incoming message vessel
     char buf[MAXDATASIZE];
@@ -99,18 +99,18 @@ void * messageState(void * socket_fd) {
     bool isLoggedIn = false;
 
 
-
-    // TODO this is where Acton reccomended to start the thread...
+    // pull off first queued TCP connection from listening socket
+    // TODO if nothing to do? 
     sin_size = sizeof their_addr;
     tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
     if (tcpfd == -1) {
         perror("accept");
         //continue;  // TODO: might need to put this code in loop to use the given continue...??
+        // Does it simply wait until there is a connection???
+        // Timeout implications??
     }
 
-
-
-
+    // Welcome message to ftp client
     if (send(tcpfd, "220 Service ready for new user.\n", 33, 0) == -1) {
         perror("send");
     }
@@ -123,6 +123,7 @@ void * messageState(void * socket_fd) {
         // flush argument array after previous send.
         memset(&argument[0], 0, sizeof(argument));
 
+        // reset
         argumentCount = 0;
 
         printf("CSftp: in message state\n");
@@ -140,15 +141,20 @@ void * messageState(void * socket_fd) {
 
         printf("CSftp: received:  %s",buf);
 
-        // parse first 4 characters of buf.
+        // parse command (first 4 characters of buf).
         // force them to upper case
         for (i = 0; i < 4; i++) {
             command[i] = toupper( buf[i]);
         }
-        // has argument most likely
+
+        // check next character for ' ' because it implies that 
+        // user sent an argument. Used for validating commands.
+        // Commands that take arguments are accepted
+        // with or without a space after, commands that
+        // take 0 arguments are not accepted with space after.
         if (buf[4] == ' ') {
             command[4] = ' ';
-            command[5] = '\0';  // "USER "
+            command[5] = '\0';  // "USER " 
         } else {
            command[4] = '\0';   // "USER"
         }
@@ -160,7 +166,8 @@ void * messageState(void * socket_fd) {
 
         bufStringLength = strlen(buf);
 
-        //  minimum length with arg is 9: "USER x" plus '\0', '\t', '\n' 
+        //  minimum length with arg is 7: "USER x" plus '\0'        
+        //  (i think CRLF is stripped off by numbytes = recv() -> buf[num[bytes] = '\0')
         if (bufStringLength < 8) {
             argumentCount = 0;
         } else {
