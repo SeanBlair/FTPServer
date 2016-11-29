@@ -114,6 +114,8 @@ void * messageState(void * socket_fd) {
     int argumentCount;
     // true if have successfully called "USER cs317" previously
     bool isLoggedIn = false;
+    // true if last call was a successful PASV
+    bool isDataConnected = false;
 
 
     // pull off first queued TCP connection from listening socket
@@ -331,15 +333,47 @@ void * messageState(void * socket_fd) {
         }
         else if ((strncmp(command, "RETR", 4) == 0)) 
         {
-            strcpy(response, "200 Command okay.\n"); 
+            if (isDataConnected)
+            // accept() data_fd, sendFile() on data_fd 
+            {
+                strcpy(response, "200 (isDataConnected)\n");   // do the work
+            }
+            else
+            {
+                strcpy(response, "425 Use PASV first.\n"); 
+            }
         }
         else if ((strncmp(command, "PASV", 4) == 0)) 
         {
-            strcpy(response, "200 Command okay.\n"); 
+            // need to create socket on new unused (how to check?) port... (maybe randomize???)
+
+            // open socket on this port, and listen for connections.
+            // respond with current ip and new port 
+            // set state.  isDataConnected == true; check id of user of new socket?
+            
+            // if receive a call to RETR or NLST, have to check state? YES
+            // is (isDataConnected) perform action on that socket/TCP data connection,
+            // close connection/socket and isDataConnected = false; (allow one use of connection);
+            // any errors are communicated through tcpfd not data_fd and connection closes.
+            // each call to RETR or NLST must be preceded by a call to PASV.
+
+            // TODO implement char * getMyIp();
+            // TODO implement char * getMyUniquePort(); returns a1, a2 where a1 * 256 + a2 == myUniquePort.
+
+            strcpy(response, "227 Entering Passive Mode. A1,A2,A3,A4,a1,a2\n");
+            isDataConnected = true; 
         }
         else if ((strncmp(command, "NLST", 4) == 0)) 
         {
-            strcpy(response, "200 Command okay.\n"); 
+            if (isDataConnected) 
+            // accept() data_fd, send(fileListString) on data_fd
+            {
+                strcpy(response, "200 (isDataConnected)\n");   // do the work
+            }
+            else
+            {
+                strcpy(response, "425 Use PASV first.\n"); 
+            } 
         }     
         else 
         {
@@ -372,13 +406,7 @@ void * listening(void * socket_fd)
 
     
 
-    // // TODO this is where Acton reccomended to start the thread...
-    // sin_size = sizeof their_addr;
-    // tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
-    // if (tcpfd == -1) {
-    //     perror("accept");
-    //     //continue;  // TODO: might need to put this code in loop to use the given continue...??
-    // }
+    // TODO this is where Acton reccomended to start the thread...
 
     // TODO start 4 threads
     messageState(socket_fd);
