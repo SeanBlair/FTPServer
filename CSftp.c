@@ -23,6 +23,16 @@
 #define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
 
 
+// from stack overflow
+char * replace_char(char* str, char find, char replace){
+    char *current_pos = strchr(str,find);
+    while (current_pos){
+        *current_pos = replace;
+        current_pos = strchr(current_pos,find);
+    }
+    return str;
+}
+
 // returns true if the given command takes no arguments
 bool isZeroArgs(char * comm) 
 {
@@ -87,7 +97,7 @@ bool isValidCommand(char * comm, int totalMessageLength)
 // TODO returns when "quit"  ??
 void * messageState(void * socket_fd) {
     // this TCP connection file descriptor
-    int tcpfd;
+    int tcpfd, datatcpfd;
 
     // used for accept() call
     socklen_t sin_size;
@@ -117,6 +127,8 @@ void * messageState(void * socket_fd) {
     // true if last call was a successful PASV
     bool isDataConnected = false;
 
+    char * myIp;
+
 
     // pull off first queued TCP connection from listening socket
     // TODO if nothing to do? 
@@ -129,6 +141,24 @@ void * messageState(void * socket_fd) {
         // Does it simply wait until there is a connection???
         // Timeout implications??
     }
+
+
+    // for finding local IP address
+    struct sockaddr_in sa;
+    int sa_len;
+    sa_len = sizeof(sa);
+
+    if (getsockname(tcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
+    {
+    perror("getsockname() failed");
+    }
+
+    printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+    printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+
+    myIp = inet_ntoa(sa.sin_addr); 
+    printf("myIp is %s", myIp);
+
 
     // Welcome message to ftp client
     if (send(tcpfd, "220 Service ready for new user.\n", 33, 0) == -1) 
@@ -149,6 +179,7 @@ void * messageState(void * socket_fd) {
         argumentCount = 0;
 
         printf("CSftp: in message state\n");
+
 
                 // reading client message
         if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) 
@@ -334,9 +365,10 @@ void * messageState(void * socket_fd) {
         else if ((strncmp(command, "RETR", 4) == 0)) 
         {
             if (isDataConnected)
-            // accept() data_fd, sendFile() on data_fd 
+            // accept() datatcpfd, sendFile() on datatcpfd 
             {
                 strcpy(response, "200 (isDataConnected)\n");   // do the work
+                // close data connection.
                 isDataConnected = false;
             }
             else
@@ -346,39 +378,140 @@ void * messageState(void * socket_fd) {
         }
         else if ((strncmp(command, "PASV", 4) == 0)) 
         {
-            // need to create socket on new unused (how to check?) port... (maybe randomize???)
-
+            // need to create socket using port "0" to allow OS to choose unused one. 
+            // after call to bind(), port # will be available with getsockname()    
+        
             // open socket on this port, and listen for connections.
+
             // respond with current ip and new port 
+            // current ip is not available until after accept(), which will not
+            // happen until later.
+            // but, when control connection is accept() we can read our IP address
+            // with getsockname() and store it as messageState() state.
+
             // set state.  isDataConnected == true; check id of user of new socket?
             
-            // if receive a call to RETR or NLST, have to check state? YES
-            // is (isDataConnected) perform action on that socket/TCP data connection,
-            // close connection/socket and isDataConnected = false; (allow one use of connection);
-            // any errors are communicated through tcpfd (not data_fd) and connection closes.
             // each call to RETR or NLST must be preceded by a call to PASV.
 
-            // TODO implement char * getMyIp();  "93,1,23,456,"
-            // TODO implement char * getMyUniquePort(); which would 
-            // return "a1, a2" where a1 * 256 + a2 == myUniquePort.
-            // and a1, a2 are 1-3 decimals each.
             if (isDataConnected)
             {   
+                // TODO
                 // close existing connection
+                close(datatcpfd);
+
                 // reset all relevant values
+                datatcpfd = -1;
                 isDataConnected = false;
             }
-            // create socket on unused port, listen for connections.
-            // set data_fd and 
-            strcpy(response, "227 Entering Passive Mode. A1,A2,A3,A4,a1,a2\n");
+
+            // create new socket, listen for connections
+            // set datatcpfd
+
+            struct addrinfo hints, *servinfo, *p;
+            int yes=1;   
+            int rv;   // rv == returnValue
+
+
+            memset(&hints, 0, sizeof hints);
+            hints.ai_family = AF_UNSPEC;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_flags = AI_PASSIVE; // use my IP
+
+            // if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0)
+            if ((rv = getaddrinfo(NULL, "0", &hints, &servinfo)) != 0) 
+            {
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+                //return 1;
+            }
+
+            //TODO  set timeout...
+            // loop through all the results and bind to the first we can
+            for(p = servinfo; p != NULL; p = p->ai_next) 
+            {
+                if ((datatcpfd = socket(p->ai_family, p->ai_socktype,
+                        p->ai_protocol)) == -1) 
+                {
+                    perror("server: socket");
+                    continue;
+                }
+        
+                if (setsockopt(datatcpfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                        sizeof(int)) == -1) 
+                {
+                    perror("setsockopt");
+                    exit(1);
+                }
+
+                if (bind(datatcpfd, p->ai_addr, p->ai_addrlen) == -1) 
+                {
+                    close(datatcpfd);
+                    perror("server: bind");
+                    continue;
+                }
+                break;
+            }
+
+            // for checking port number selected when specified as "0"
+            // struct sockaddr_in serv_addr;
+
+            struct sockaddr_in sa;
+            int sa_len;
+            sa_len = sizeof(sa);
+
+            if (getsockname(datatcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
+            {
+                perror("getsockname() failed");
+            }
+
+            printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+            char * myIpString = replace_char(myIp, '.', ',');
+            printf("myIpString is: %s", myIpString);
+
+            int port = (int) ntohs(sa.sin_port);
+
+            int a = port / 256;
+            char aStr[11];
+            sprintf(aStr, "%d", a);
+            int b = port % 256;
+            char bStr[11];
+            sprintf(bStr, "%d", b);
+            
+            strcpy(response, "227 Entering Passive Mode. (");
+            strncat(response, myIpString, 16);
+            strncat(response, ",", 1);
+            strncat(response, aStr, 3);
+            strncat(response, ",", 1);
+            strncat(response, bStr, 3);
+            strncat(response, ")\n", 2);
+
+
+            freeaddrinfo(servinfo); // all done with this structure
+
+            if (p == NULL)  
+            {
+                fprintf(stderr, "CSftp: (data connection) failed to bind\n");
+                exit(1);
+            }
+
+
+            // start listening...
+            if (listen(datatcpfd, BACKLOG) == -1) 
+            {
+                perror("listen");
+                exit(1);
+            }
+
+
             isDataConnected = true; 
+
         }
         else if ((strncmp(command, "NLST", 4) == 0)) 
         {
             if (isDataConnected) 
-            // accept() data_fd, send(fileListString) on data_fd
+            // accept() datatcpfd, send(fileListString) on datatcpfd
             {
                 strcpy(response, "200 (isDataConnected)\n");   // do the work
+                // close data connection
                 isDataConnected = false;
             }
             else
@@ -414,8 +547,21 @@ void * listening(void * socket_fd)
 
     printf("CSftp: in listen state.\n");
 
+    // // for checking port number selected...
+    // struct sockaddr_in serv_addr;
 
+    // socklen_t len = sizeof(serv_addr);
+    // if (getsockname(socket_fd, (struct sockaddr *)&serv_addr, &len) == -1) {
+    //     perror("getsockname");
+    //     return;
+    // }
     
+    // printf("Local IP address is: %s\n", inet_ntoa(serv_addr.sin_addr));
+     
+    // printf("Local port is: %d\n", (int) ntohs(serv_addr.sin_port));
+
+
+
 
     // TODO this is where Acton reccomended to start the thread...
 
@@ -452,7 +598,8 @@ int main(int argc, char **argv)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0) 
+    if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0)
+    //if ((rv = getaddrinfo(NULL, "0", &hints, &servinfo)) != 0) 
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -485,6 +632,23 @@ int main(int argc, char **argv)
 
         break;
     }
+
+
+      // for checking port number selected when specified as "0"
+    // struct sockaddr_in serv_addr;
+
+    struct sockaddr_in sa;
+    int sa_len;
+    sa_len = sizeof(sa);
+
+    if (getsockname(sockfd, (struct sockaddr * ) &sa, &sa_len) == -1) {
+      perror("getsockname() failed");
+      return -1;
+    }
+
+    printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+    printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+
 
     freeaddrinfo(servinfo); // all done with this structure
 
