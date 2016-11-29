@@ -252,16 +252,20 @@ void * messageState(void * socket_fd) {
         }
         else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
-            char arg =  toupper( argument[0] );
+            char typeArg =  toupper( argument[0] );
 
             // one character argument followed by CRLF
             if (strlen(argument) == 3) 
             {
-                if((arg == 'I') || (arg == 'A')) 
+                if(typeArg == 'I') 
                 {
-                    strcpy(response, "200 Command okay.\n");    
+                    strcpy(response, "200 Switching to Binary mode.\n");    
                 }
-                else if ((arg == 'L') || (arg == 'E')) 
+                else if (typeArg == 'A') 
+                {
+                    strcpy(response, "200 Switching to ASCII mode.\n");   
+                } 
+                else if ((typeArg == 'L') || (typeArg == 'E')) 
                 {
                     strcpy(response, "504 Command not implemented for that parameter.\n");
                 } 
@@ -277,15 +281,15 @@ void * messageState(void * socket_fd) {
         }
         else if ((strncmp(command, "MODE", 4) == 0)) 
         {
-            char arg = toupper( argument[0] );
+            char modeArg = toupper( argument[0] );
             // one character argument followed by CRLF
             if (strlen(argument) == 3) 
             {
-                if(arg == 'S') 
+                if(modeArg == 'S') 
                 {
                     strcpy(response, "200 Mode set to S.\n");    
                 }
-                else if ((arg == 'B') || (arg == 'C')) {
+                else if ((modeArg == 'B') || (modeArg == 'C')) {
                     strcpy(response, "504 Command not implemented for that parameter.\n");
                 } 
                 else {
@@ -298,7 +302,24 @@ void * messageState(void * socket_fd) {
         }
         else if ((strncmp(command, "STRU", 4) == 0)) 
         {
-            strcpy(response, "200 Command okay.\n"); 
+            char struArg = toupper( argument[0] );
+            // one character argument followed by CRLF
+            if (strlen(argument) == 3) 
+            {
+                if(struArg == 'F') 
+                {
+                    strcpy(response, "200 Structure set to F.\n");    
+                }
+                else if ((struArg == 'B') || (struArg == 'C')) {
+                    strcpy(response, "504 Command not implemented for that parameter.\n");
+                } 
+                else {
+                    strcpy(response, "501 Syntax error in parameters or arguments.\n");
+                }
+            } 
+            else {
+                strcpy(response, "501 Syntax error in parameters or arguments.\n");
+            } 
         }
         else if ((strncmp(command, "RETR", 4) == 0)) 
         {
