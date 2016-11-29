@@ -337,6 +337,7 @@ void * messageState(void * socket_fd) {
             // accept() data_fd, sendFile() on data_fd 
             {
                 strcpy(response, "200 (isDataConnected)\n");   // do the work
+                isDataConnected = false;
             }
             else
             {
@@ -354,12 +355,21 @@ void * messageState(void * socket_fd) {
             // if receive a call to RETR or NLST, have to check state? YES
             // is (isDataConnected) perform action on that socket/TCP data connection,
             // close connection/socket and isDataConnected = false; (allow one use of connection);
-            // any errors are communicated through tcpfd not data_fd and connection closes.
+            // any errors are communicated through tcpfd (not data_fd) and connection closes.
             // each call to RETR or NLST must be preceded by a call to PASV.
 
-            // TODO implement char * getMyIp();
-            // TODO implement char * getMyUniquePort(); returns a1, a2 where a1 * 256 + a2 == myUniquePort.
-
+            // TODO implement char * getMyIp();  "93,1,23,456,"
+            // TODO implement char * getMyUniquePort(); which would 
+            // return "a1, a2" where a1 * 256 + a2 == myUniquePort.
+            // and a1, a2 are 1-3 decimals each.
+            if (isDataConnected)
+            {   
+                // close existing connection
+                // reset all relevant values
+                isDataConnected = false;
+            }
+            // create socket on unused port, listen for connections.
+            // set data_fd and 
             strcpy(response, "227 Entering Passive Mode. A1,A2,A3,A4,a1,a2\n");
             isDataConnected = true; 
         }
@@ -369,6 +379,7 @@ void * messageState(void * socket_fd) {
             // accept() data_fd, send(fileListString) on data_fd
             {
                 strcpy(response, "200 (isDataConnected)\n");   // do the work
+                isDataConnected = false;
             }
             else
             {
