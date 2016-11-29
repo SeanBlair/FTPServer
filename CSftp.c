@@ -127,11 +127,13 @@ void * messageState(void * socket_fd) {
     // true if last call was a successful PASV
     bool isDataConnected = false;
 
+    // the IP address of the machine CSftp run on
+    // Ex: "87.6.0.6"
     char * myIp;
 
 
     // pull off first queued TCP connection from listening socket
-    // TODO if nothing to do? 
+    // TODO if nothing to do (stalls until something to accept??) 
     sin_size = sizeof their_addr;
     tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
     if (tcpfd == -1) 
@@ -143,7 +145,7 @@ void * messageState(void * socket_fd) {
     }
 
 
-    // for finding local IP address
+    // for finding the IP address of the machine running CSftp
     struct sockaddr_in sa;
     int sa_len;
     sa_len = sizeof(sa);
@@ -157,7 +159,7 @@ void * messageState(void * socket_fd) {
     printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
 
     myIp = inet_ntoa(sa.sin_addr); 
-    printf("myIp is %s", myIp);
+    printf("myIp is %s\n", myIp);
 
 
     // Welcome message to ftp client
@@ -500,6 +502,8 @@ void * messageState(void * socket_fd) {
                 perror("listen");
                 exit(1);
             }
+
+            // TODO find out if I should call accept() here... I think not...
 
 
             isDataConnected = true; 
