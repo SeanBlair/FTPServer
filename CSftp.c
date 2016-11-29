@@ -46,8 +46,15 @@ bool isCorrectArgCount(char * comm, int count) {
     if (isZeroArgs(comm)) 
     {
         return count == 0;
+    }
+    // allow argument TYPE to provide arguments with spaces
+    // this is to support TYPE A N
+    else if((strncmp(comm, "TYPE", 4) == 0) && ((count == 1) || (count == 2)))
+    {
+        return true;
     } 
-    else 
+    // all else require one argument
+    else
     {
         return count == 1;
     }
