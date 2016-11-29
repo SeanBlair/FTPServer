@@ -86,7 +86,7 @@ bool isValidCommand(char * comm, int totalMessageLength)
 // the message state of each thread
 // TODO returns when "quit"  ??
 void * messageState(void * socket_fd) {
-    // this TCP connection
+    // this TCP connection file descriptor
     int tcpfd;
 
     // used for accept() call
@@ -95,7 +95,8 @@ void * messageState(void * socket_fd) {
     // used for accept() call
     struct sockaddr_storage their_addr; // connector's address information
     
-    // numbytes = bytes received in buf; i = index of buf[] for parser
+    // numbytes = bytes received in buf; 
+    // i = index of buf[] for parsing
     int numbytes, i;
     // incoming message vessel
     char buf[MAXDATASIZE];
@@ -206,7 +207,7 @@ void * messageState(void * socket_fd) {
             } 
             else 
             {
-                // this is equivalent to error, because no command takes 2 args
+                // this indicates a possible TYPE A N command
                 // or could catch an illegal second space after command
                 argumentCount = 2;
             }
