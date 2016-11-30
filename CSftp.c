@@ -266,8 +266,21 @@ void * messageState(void * socket_fd) {
         else if (strncmp(command, "QUIT", 4) == 0) 
         {
             strcpy(response, "221 Service closing control connection.\n"); 
-            // TODO return?? with error message??? 
-            // or simply return and allow method to continue 
+
+            if (isDataConnected) {
+                close(datatcpfd);
+            }  
+
+           if (send(tcpfd, response, MAXDATASIZE, 0) == -1) 
+            {
+                perror("send");
+                // TODO:    What to send client???
+            }
+            
+            close(tcpfd);
+
+            return;
+        
         }
         else if (strncmp(command, "USER", 4) == 0) 
         {       
@@ -572,9 +585,12 @@ void * listening(void * socket_fd)
     // TODO start 4 threads
     messageState(socket_fd);
 
+
+    return;
     // TODO
     // do something awesome when previous returns?
     // could return numbers signifying success or errors//
+    // or could simply return when done execution.
 }
 
 
@@ -665,6 +681,8 @@ int main(int argc, char **argv)
     // listen call..
     // maybe/maybe not where thread should be started.
     listening(&sockfd);
+
+    close(sockfd);
 
     return 0;
 
