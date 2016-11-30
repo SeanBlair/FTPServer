@@ -287,16 +287,19 @@ void * messageState(void * socket_fd) {
             {
                 strcpy(response, "230 User logged in, proceed.\n");
             }
-            else {
+            else 
+            {
                 int argumentLength = strlen(argument);
 
-            // this checks for equality of first 5 characters, 
+            // this checks for equality of first 5 characters of argument, 
             // and that there were no more characters other than CR LF.
-                if ((strncmp(argument, "cs317", 5) == 0) && (strlen(argument) == 7)) {
+                if ((strncmp(argument, "cs317", 5) == 0) && (strlen(argument) == 7)) 
+                {
                     isLoggedIn = true;
                     strcpy(response, "230 User logged in, proceed.\n");    
                 }
-                else {
+                else 
+                {
                     strcpy(response, "332 Need account for login.\n");
                 }    
             }            
@@ -381,8 +384,10 @@ void * messageState(void * socket_fd) {
             if (isDataConnected)
             // accept() datatcpfd, sendFile() on datatcpfd 
             {
-                strcpy(response, "200 (isDataConnected)\n");   // do the work
+                strcpy(response, "200 (isDataConnected)\n");   
+                // do the work
                 // close data connection.
+                // close datasocket
                 isDataConnected = false;
             }
             else
@@ -399,12 +404,11 @@ void * messageState(void * socket_fd) {
 
             // respond with current ip and new port 
             // current ip is not available until after accept(), which will not
-            // happen until later.
-            // but, when control connection is accept() we can read our IP address
+            // happen until later. But, when control connection is accept() we can read our IP address
             // with getsockname() and store it as messageState() state.
 
-            // set state.  isDataConnected == true; check id of user of new socket?
-            
+            // set state.  isDataConnected == true; 
+
             // each call to RETR or NLST must be preceded by a call to PASV.
 
             if (isDataConnected)
@@ -421,27 +425,27 @@ void * messageState(void * socket_fd) {
                 isDataConnected = false;
             }
 
+
             // create new socket, listen for connections
             // set datasockfd
+            // TODO refactor repeated code...
 
             struct addrinfo hints, *servinfo, *p;
             int yes=1;   
-            int rv;   // rv == returnValue
-
+            int rv;   
 
             memset(&hints, 0, sizeof hints);
             hints.ai_family = AF_UNSPEC;
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_flags = AI_PASSIVE; // use my IP
 
-            // if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0)
             if ((rv = getaddrinfo(NULL, "0", &hints, &servinfo)) != 0) 
             {
                 fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-                //return 1;
             }
 
             //TODO  set timeout...
+
             // loop through all the results and bind to the first we can
             for(p = servinfo; p != NULL; p = p->ai_next) 
             {
@@ -468,8 +472,7 @@ void * messageState(void * socket_fd) {
                 break;
             }
 
-            // for checking port number selected when specified as "0"
-            // struct sockaddr_in serv_addr;
+            // for checking port number of data socket
 
             struct sockaddr_in sa;
             int sa_len;
@@ -481,11 +484,13 @@ void * messageState(void * socket_fd) {
             }
 
             printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+            // don't need this
             char * myIpString = replace_char(myIp, '.', ',');
             printf("myIpString is: %s\n", myIpString);
 
-            int port = (int) ntohs(sa.sin_port);
 
+            int port = (int) ntohs(sa.sin_port);
+            // parse port in FTP pasv connection format
             int a = port / 256;
             char aStr[11];
             sprintf(aStr, "%d", a);
@@ -499,7 +504,7 @@ void * messageState(void * socket_fd) {
             strncat(response, aStr, 3);
             strncat(response, ",", 1);
             strncat(response, bStr, 3);
-            strncat(response, ")\n\n", 2);
+            strncat(response, ")\n", 2);
 
 
             freeaddrinfo(servinfo); // all done with this structure
@@ -508,6 +513,7 @@ void * messageState(void * socket_fd) {
             {
                 fprintf(stderr, "CSftp: (data connection) failed to bind\n");
                 exit(1);
+                // TODO error message??
             }
 
 
@@ -516,27 +522,24 @@ void * messageState(void * socket_fd) {
             {
                 perror("listen");
                 exit(1);
+                // TODO error??
             }
 
             isDataConnected = true; 
-
         }
         else if ((strncmp(command, "NLST", 4) == 0)) 
         {
             if (isDataConnected) 
-            // datatcpfd = accept(datasockfd, ) , send(datatcpfd, fileListString) on datatcpfd
             {
-
                 // used for accept() call
                 socklen_t data_sin_size;
 
                 // used for accept() call
                 struct sockaddr_storage data_their_addr; // connector's address information
 
-
-
                 // pull off first queued TCP connection from listening socket
-                // TODO if nothing to do (stalls until something to accept??) 
+                // TODO if nothing to do??
+
                 data_sin_size = sizeof data_their_addr;
                 datatcpfd = accept( datasockfd, (struct sockaddr *)&data_their_addr, &data_sin_size);
                 if (datatcpfd == -1) 
@@ -557,11 +560,6 @@ void * messageState(void * socket_fd) {
 
 
                 // returns count of files printed
-
-                // -1 the named directory does not exist or you don't have permssion
-                //    to read it.
-                // -2 insufficient resources to perform request
-
                 int filesListed = listFiles(datatcpfd, ".");
                 if (filesListed == -1) 
                 {
@@ -572,20 +570,14 @@ void * messageState(void * socket_fd) {
                 } 
                 else if (filesListed == -2) 
                 {
-                    printf("listfiles returned -2 (insufficient resources to perform request)\n ");
+                    printf("\nlistfiles returned -2 (insufficient resources to perform request)\n ");
                     strcpy(response, "426 Connection closed; transfer aborted.\n");
                 }
 
                 printf("\nfiles listed was %d\n", filesListed);
 
                 // happy case
-
-                // then
-                // 226 Directory send OK.
                 strcpy(response, "226 Directory send OK.\n");
-
-                //TODO
-                // close data connection
 
                 close(datatcpfd);
                 close(datasockfd);
@@ -596,7 +588,6 @@ void * messageState(void * socket_fd) {
             {
                 strcpy(response, "425 Use PASV first.\n"); 
             } 
-
         }     
         else 
         {
@@ -608,7 +599,7 @@ void * messageState(void * socket_fd) {
             perror("send");
             // TODO:    What to send client???
         }
-
+        
         printf("CSftp: sent    :  %s",response);
     }
 }
