@@ -51,7 +51,7 @@ bool isOneArgs(char * comm)
             (strncmp(comm, "RETR", 4) == 0);
 }
 
-// returns true if the given comm takes the given argument count
+// returns true if the given command requires the given argument count
 bool isCorrectArgCount(char * comm, int count) {
     if (isZeroArgs(comm)) 
     {
@@ -71,6 +71,7 @@ bool isCorrectArgCount(char * comm, int count) {
 }
 
 // returns true if command requires to be logged in
+// requires valid commands, precede by check to isValidCommand(comm);
 bool needsLogin(char * comm) 
 {    
     return !((strncmp(comm, "QUIT", 4) == 0) || 
@@ -118,9 +119,7 @@ void * messageState(void * socket_fd) {
     char command[6];   
     // for argument (total incoming message, without the first 5 characters)
     char argument[MAXDATASIZE];
-    // do not support arguments with spaces, as 
-    // argument with spaces deemed 2 which is currently unsuported... 
-    // TODO will this be sufficient?
+    // 0, 1 or 2
     int argumentCount;
     // true if have successfully called "USER cs317" previously
     bool isLoggedIn = false;
@@ -133,19 +132,18 @@ void * messageState(void * socket_fd) {
 
 
     // pull off first queued TCP connection from listening socket
-    // TODO if nothing to do (stalls until something to accept??) 
     sin_size = sizeof their_addr;
     tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
     if (tcpfd == -1) 
     {
         perror("accept");
-        //continue;  // TODO: might need to put this code in loop to use the given continue...??
+        // TODO
         // Does it simply wait until there is a connection???
         // Timeout implications??
     }
 
 
-    // for finding the IP address of the machine running CSftp
+    // for finding the IP address of the machine running CSftp.o
     struct sockaddr_in sa;
     int sa_len;
     sa_len = sizeof(sa);
@@ -162,8 +160,8 @@ void * messageState(void * socket_fd) {
     printf("myIp is %s\n", myIp);
 
 
-    // Welcome message to ftp client
-    if (send(tcpfd, "220 Service ready for new user.\n", 33, 0) == -1) 
+    // Welcome message to FTP client
+    if (send(tcpfd, "220 Service ready for new user.\n", 32, 0) == -1) 
     {
         perror("send");
     }
@@ -183,7 +181,7 @@ void * messageState(void * socket_fd) {
         printf("CSftp: in message state\n");
 
 
-                // reading client message
+        // reading client message
         if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) 
         {            
             perror("recv");
@@ -269,6 +267,7 @@ void * messageState(void * socket_fd) {
 
             if (isDataConnected) {
                 close(datatcpfd);
+                close(datasockfd);
             }  
 
            if (send(tcpfd, response, MAXDATASIZE, 0) == -1) 
@@ -483,7 +482,7 @@ void * messageState(void * socket_fd) {
 
             printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
             char * myIpString = replace_char(myIp, '.', ',');
-            printf("myIpString is: %s", myIpString);
+            printf("myIpString is: %s\n", myIpString);
 
             int port = (int) ntohs(sa.sin_port);
 
@@ -500,7 +499,7 @@ void * messageState(void * socket_fd) {
             strncat(response, aStr, 3);
             strncat(response, ",", 1);
             strncat(response, bStr, 3);
-            strncat(response, ")\n", 2);
+            strncat(response, ")\n\n", 2);
 
 
             freeaddrinfo(servinfo); // all done with this structure
@@ -548,10 +547,6 @@ void * messageState(void * socket_fd) {
                 // Does it simply wait until there is a connection???
                 // Timeout implications??
                 }
-
-
-                // send "150 Here comes the directory listing. here.
-                // on tcpfd
 
                 if (send(tcpfd, "150 Here comes the directory listing.\n", 38, 0) == -1) 
                 {
@@ -620,7 +615,6 @@ void * messageState(void * socket_fd) {
 
 
 // the listening state of each thread 
-// no TCP connection with client yet.
 void * listening(void * socket_fd) 
 {              
     if (listen( *(int*) socket_fd, BACKLOG) == -1) 
@@ -631,27 +625,10 @@ void * listening(void * socket_fd)
 
     printf("CSftp: in listen state.\n");
 
-    // // for checking port number selected...
-    // struct sockaddr_in serv_addr;
-
-    // socklen_t len = sizeof(serv_addr);
-    // if (getsockname(socket_fd, (struct sockaddr *)&serv_addr, &len) == -1) {
-    //     perror("getsockname");
-    //     return;
-    // }
-    
-    // printf("Local IP address is: %s\n", inet_ntoa(serv_addr.sin_addr));
-     
-    // printf("Local port is: %d\n", (int) ntohs(serv_addr.sin_port));
-
-
-
 
     // TODO this is where Acton reccomended to start the thread...
-
     // TODO start 4 threads
     messageState(socket_fd);
-
 
     return;
     // TODO
@@ -661,15 +638,16 @@ void * listening(void * socket_fd)
 }
 
 
-
+// FTP server
 int main(int argc, char **argv) 
 {
+    // some code based on http://beej.us/guide/bgnet/examples/server.c
     
-    struct addrinfo hints, *servinfo, *p;  // not sure what these for... look in tutorial.
+    struct addrinfo hints, *servinfo, *p;
     int yes=1;   
     int sockfd;
 
-    int rv;   // rv == returnValue
+    int rv;   
 
     // Check the command line arguments
     if (argc != 2) 
@@ -686,7 +664,6 @@ int main(int argc, char **argv)
     hints.ai_flags = AI_PASSIVE; // use my IP
 
     if ((rv = getaddrinfo(NULL, argv[1], &hints, &servinfo)) != 0)
-    //if ((rv = getaddrinfo(NULL, "0", &hints, &servinfo)) != 0) 
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
@@ -720,23 +697,6 @@ int main(int argc, char **argv)
         break;
     }
 
-
-      // for checking port number selected when specified as "0"
-    // struct sockaddr_in serv_addr;
-
-    struct sockaddr_in sa;
-    int sa_len;
-    sa_len = sizeof(sa);
-
-    if (getsockname(sockfd, (struct sockaddr * ) &sa, &sa_len) == -1) {
-      perror("getsockname() failed");
-      return -1;
-    }
-
-    printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
-    printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
-
-
     freeaddrinfo(servinfo); // all done with this structure
 
     if (p == NULL)  
@@ -749,6 +709,8 @@ int main(int argc, char **argv)
     // maybe/maybe not where thread should be started.
     listening(&sockfd);
 
+    // when QUIT called or errors?
+    // TODO figure it out
     close(sockfd);
 
     return 0;
