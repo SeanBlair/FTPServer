@@ -97,7 +97,7 @@ bool isValidCommand(char * comm, int totalMessageLength)
 // TODO returns when "quit"  ??
 void * messageState(void * socket_fd) {
     // this TCP connection file descriptor
-    int tcpfd, datatcpfd;
+    int tcpfd, datasockfd, datatcpfd ;
 
     // used for accept() call
     socklen_t sin_size;
@@ -413,14 +413,17 @@ void * messageState(void * socket_fd) {
                 // TODO
                 // close existing connection
                 close(datatcpfd);
+                close(datasockfd);
 
                 // reset all relevant values
                 datatcpfd = -1;
+                datasockfd = -1;
+
                 isDataConnected = false;
             }
 
             // create new socket, listen for connections
-            // set datatcpfd
+            // set datasockfd
 
             struct addrinfo hints, *servinfo, *p;
             int yes=1;   
@@ -443,23 +446,23 @@ void * messageState(void * socket_fd) {
             // loop through all the results and bind to the first we can
             for(p = servinfo; p != NULL; p = p->ai_next) 
             {
-                if ((datatcpfd = socket(p->ai_family, p->ai_socktype,
+                if ((datasockfd = socket(p->ai_family, p->ai_socktype,
                         p->ai_protocol)) == -1) 
                 {
                     perror("server: socket");
                     continue;
                 }
         
-                if (setsockopt(datatcpfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                if (setsockopt(datasockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
                         sizeof(int)) == -1) 
                 {
                     perror("setsockopt");
                     exit(1);
                 }
 
-                if (bind(datatcpfd, p->ai_addr, p->ai_addrlen) == -1) 
+                if (bind(datasockfd, p->ai_addr, p->ai_addrlen) == -1) 
                 {
-                    close(datatcpfd);
+                    close(datasockfd);
                     perror("server: bind");
                     continue;
                 }
@@ -473,7 +476,7 @@ void * messageState(void * socket_fd) {
             int sa_len;
             sa_len = sizeof(sa);
 
-            if (getsockname(datatcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
+            if (getsockname(datasockfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
             {
                 perror("getsockname() failed");
             }
@@ -510,14 +513,11 @@ void * messageState(void * socket_fd) {
 
 
             // start listening...
-            if (listen(datatcpfd, BACKLOG) == -1) 
+            if (listen(datasockfd, BACKLOG) == -1) 
             {
                 perror("listen");
                 exit(1);
             }
-
-            // TODO find out if I should call accept() here... I think not...
-
 
             isDataConnected = true; 
 
@@ -525,16 +525,83 @@ void * messageState(void * socket_fd) {
         else if ((strncmp(command, "NLST", 4) == 0)) 
         {
             if (isDataConnected) 
-            // accept() datatcpfd, send(fileListString) on datatcpfd
+            // datatcpfd = accept(datasockfd, ) , send(datatcpfd, fileListString) on datatcpfd
             {
-                strcpy(response, "200 (isDataConnected)\n");   // do the work
+
+                // used for accept() call
+                socklen_t data_sin_size;
+
+                // used for accept() call
+                struct sockaddr_storage data_their_addr; // connector's address information
+
+
+
+                // pull off first queued TCP connection from listening socket
+                // TODO if nothing to do (stalls until something to accept??) 
+                data_sin_size = sizeof data_their_addr;
+                datatcpfd = accept( datasockfd, (struct sockaddr *)&data_their_addr, &data_sin_size);
+                if (datatcpfd == -1) 
+                {
+                    printf("accept(datasockfd) produced a -1...");
+                     perror("accept");
+                //continue;  // TODO: might need to put this code in loop to use the given continue...??
+                // Does it simply wait until there is a connection???
+                // Timeout implications??
+                }
+
+
+                // send "150 Here comes the directory listing. here.
+                // on tcpfd
+
+                if (send(tcpfd, "150 Here comes the directory listing.\n", 38, 0) == -1) 
+                {
+                    perror("send");
+                    // TODO:    What to send client???
+                    // 450 maybe??
+                }
+
+
+                // returns count of files printed
+
+                // -1 the named directory does not exist or you don't have permssion
+                //    to read it.
+                // -2 insufficient resources to perform request
+
+                int filesListed = listFiles(datatcpfd, ".");
+                if (filesListed == -1) 
+                {
+                    printf("\nlistfiles returned -1 (directory does not exist or you don't have permission)\n");
+                    perror("listFiles");
+                    strcpy(response, "451 Requested action aborted: local error in processing.\n");
+
+                } 
+                else if (filesListed == -2) 
+                {
+                    printf("listfiles returned -2 (insufficient resources to perform request)\n ");
+                    strcpy(response, "426 Connection closed; transfer aborted.\n");
+                }
+
+                printf("\nfiles listed was %d\n", filesListed);
+
+                // happy case
+
+                // then
+                // 226 Directory send OK.
+                strcpy(response, "226 Directory send OK.\n");
+
+                //TODO
                 // close data connection
+
+                close(datatcpfd);
+                close(datasockfd);
+
                 isDataConnected = false;
             }
             else
             {
                 strcpy(response, "425 Use PASV first.\n"); 
             } 
+
         }     
         else 
         {
