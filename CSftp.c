@@ -440,151 +440,137 @@ void * messageState(void * socket_fd) {
         }
         else if ((strncmp(command, "PASV", 4) == 0)) 
         {
-            // need to create socket using port "0" to allow OS to choose unused one. 
-            // after call to bind(), port # will be available with getsockname()    
-        
-            // open socket on this port, and listen for connections.
-
-            // respond with current ip and new port 
-            // current ip is not available until after accept(), which will not
-            // happen until later. But, when control connection is accept() we can read our IP address
-            // with getsockname() and store it as messageState() state.
-
-            // set state.  isDataConnected == true; 
-
-            // each call to RETR or NLST must be preceded by a call to PASV.
-
             if (isLoggedIn)
             {
 
-            if (isDataConnected)
-            {   
-                // TODO
-                // close existing connection
-                close(datatcpfd);
-                close(datasockfd);
-
-                // reset all relevant values
-                datatcpfd = -1;
-                datasockfd = -1;
-
-                isDataConnected = false;
-            }
-
-
-            // create new socket, listen for connections
-            // set datasockfd
-            // TODO refactor repeated code...
-
-            struct addrinfo hints, *servinfo, *p;
-            int yes=1;   
-            int rv;   
-
-            memset(&hints, 0, sizeof hints);
-            hints.ai_family = AF_UNSPEC;
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_flags = AI_PASSIVE; // use my IP
-
-            if ((rv = getaddrinfo(NULL, "0", &hints, &servinfo)) != 0) 
-            {
-                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-            }
-
-            //TODO  set timeout...
-
-            // loop through all the results and bind to the first we can
-            for(p = servinfo; p != NULL; p = p->ai_next) 
-            {
-                if ((datasockfd = socket(p->ai_family, p->ai_socktype,
-                        p->ai_protocol)) == -1) 
-                {
-                    perror("server: socket");
-                    continue;
-                }
-        
-                if (setsockopt(datasockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                        sizeof(int)) == -1) 
-                {
-                    perror("setsockopt");
-                    exit(1);
-                }
-
-                if (bind(datasockfd, p->ai_addr, p->ai_addrlen) == -1) 
-                {
+                if (isDataConnected)
+                {   
+                    // TODO
+                    // close existing connection
+                    close(datatcpfd);
                     close(datasockfd);
-                    perror("server: bind");
-                    continue;
+
+                    // reset all relevant values
+                    datatcpfd = -1;
+                    datasockfd = -1;
+
+                    isDataConnected = false;
                 }
-                break;
-            }
-
-            // for checking port number of data socket
-
-            struct sockaddr_in sa;
-            int sa_len;
-            sa_len = sizeof(sa);
-
-            if (getsockname(datasockfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
-            {
-                perror("getsockname() failed");
-            }
-
-            printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
-            // don't need this
-            char * myIpString = replace_character(myIp, '.', ',');
-            printf("myIpString is: %s\n", myIpString);
 
 
-            int port = (int) ntohs(sa.sin_port);
-            // parse port in FTP pasv connection format
-            int a = port / 256;
-            char aStr[11];
-            sprintf(aStr, "%d", a);
-            int b = port % 256;
-            char bStr[11];
-            sprintf(bStr, "%d", b);
+                // create new socket, listen for connections
+                // set datasockfd
+                // TODO refactor repeated code...
+
+                struct addrinfo hints, *servinfo, *p;
+                int yes=1;   
+                int rv;   
+
+                memset(&hints, 0, sizeof hints);
+                hints.ai_family = AF_UNSPEC;
+                hints.ai_socktype = SOCK_STREAM;
+                hints.ai_flags = AI_PASSIVE; // use my IP
+
+                if ((rv = getaddrinfo(NULL, "0", &hints, &servinfo)) != 0) 
+                {
+                    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+                }
+
+                //TODO  set timeout...
+
+                // loop through all the results and bind to the first we can
+                for(p = servinfo; p != NULL; p = p->ai_next) 
+                {
+                    if ((datasockfd = socket(p->ai_family, p->ai_socktype,
+                            p->ai_protocol)) == -1) 
+                    {
+                        perror("server: socket");
+                        continue;
+                    }
+        
+                    if (setsockopt(datasockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                            sizeof(int)) == -1) 
+                    {
+                        perror("setsockopt");
+                        exit(1);
+                    }
+
+                    if (bind(datasockfd, p->ai_addr, p->ai_addrlen) == -1) 
+                    {
+                        close(datasockfd);
+                        perror("server: bind");
+                        continue;
+                    }
+                    break;
+                }
+
+                // for checking port number of data socket
+
+                struct sockaddr_in sa;
+                int sa_len;
+                sa_len = sizeof(sa);
+
+                if (getsockname(datasockfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
+                {
+                    perror("getsockname() failed");
+                }
+
+                printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+                // don't need this
+                char * myIpString = replace_character(myIp, '.', ',');
+                printf("myIpString is: %s\n", myIpString);
+
+
+                int port = (int) ntohs(sa.sin_port);
+                // parse port in FTP pasv connection format
+                int a = port / 256;
+                char aStr[11];
+                sprintf(aStr, "%d", a);
+                int b = port % 256;
+                char bStr[11];
+                sprintf(bStr, "%d", b);
             
-            strcpy(response, "227 Entering Passive Mode. (");
-            strncat(response, myIpString, 16);
-            strncat(response, ",", 1);
-            strncat(response, aStr, 3);
-            strncat(response, ",", 1);
-            strncat(response, bStr, 3);
-            strncat(response, ")\n", 2);
+                strcpy(response, "227 Entering Passive Mode. (");
+                strncat(response, myIpString, 16);
+                strncat(response, ",", 1);
+                strncat(response, aStr, 3);
+                strncat(response, ",", 1);
+                strncat(response, bStr, 3);
+                strncat(response, ")\n", 2);
 
 
-            freeaddrinfo(servinfo); // all done with this structure
+                freeaddrinfo(servinfo); // all done with this structure
 
-            if (p == NULL)  
-            {
-                fprintf(stderr, "CSftp: (data connection) failed to bind\n");
-                exit(1);
-                // TODO error message??
+                if (p == NULL)  
+                {
+                    fprintf(stderr, "CSftp: (data connection) failed to bind\n");
+                    exit(1);
+                    // TODO error message??
+                }
+
+
+
+
+                // TODO:  put this into retr and nlst instead of here.????
+                // didn't seem to work as the data connection could not be made by the client.
+                // alternatively?? add timeout feature, that blocks for a finite period.
+                // this is to not block the program as it waits for input... piazza 
+                // start listening...
+                if (listen(datasockfd, BACKLOG) == -1) 
+                {
+                    perror("listen");
+                    exit(1);
+                    // TODO error??
+                }
+
+                isDataConnected = true; 
+
             }
 
-
-
-
-            // TODO:  put this into retr and nlst instead of here.????
-            // didn't seem to work as the data connection could not be made by the client.
-            // alternatively?? add timeout feature, that blocks for a finite period.
-            // this is to not block the program as it waits for input... piazza 
-            // start listening...
-            if (listen(datasockfd, BACKLOG) == -1) 
+            else
             {
-                perror("listen");
-                exit(1);
-                // TODO error??
+                strcpy(response, "530 Not logged in.\n");
             }
-
-            isDataConnected = true; 
-
-        }
-
-        else
-        {
-            strcpy(response, "530 Not logged in.\n");
-        }
 
         }
         else if ((strncmp(command, "NLST", 4) == 0)) 
