@@ -18,6 +18,7 @@
 // my addition
 #include <stdbool.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 #define BACKLOG 40      // how many pending connections queue will hold, set higher than needed..
 #define MAXDATASIZE 256 // max number of bytes we can get at once  TODO (look into)
@@ -415,6 +416,8 @@ void * messageState(void * socket_fd) {
                 strcpy(response, "501 Syntax error in parameters or arguments.\n");
             } 
         }
+
+
         else if ((strncmp(command, "RETR", 4) == 0)) 
         {
             if (isLoggedIn)
@@ -422,10 +425,70 @@ void * messageState(void * socket_fd) {
                 if (isDataConnected)
             // accept() datatcpfd, sendFile() on datatcpfd 
                 {
-                    strcpy(response, "200 (isDataConnected)\n");   
-                // do the work
-                // close data connection.
-                // close datasocket
+
+                    // used for accept() call
+                    socklen_t rdata_sin_size;
+
+                    // used for accept() call
+                    struct sockaddr_storage rdata_their_addr; // connector's address information
+
+                    // pull off first queued TCP connection from listening socket
+                    // TODO if nothing to do??
+
+                    rdata_sin_size = sizeof rdata_their_addr;
+                    datatcpfd = accept( datasockfd, (struct sockaddr *)&rdata_their_addr, &rdata_sin_size);
+                    if (datatcpfd == -1) 
+                    {
+                        printf("accept(datasockfd) produced a -1...");
+                        perror("accept");
+                        //TODO
+                    // Timeout implications??
+                    }
+
+
+                    int filefd;
+                    ssize_t read_return;
+                    char buffer[MAXDATASIZE-5];  // TODO look into this logic
+
+                    //filefd = open(argument, O_RDONLY);
+                    filefd = open("Makefile", O_RDONLY);
+
+                    if (filefd == -1) 
+                    {
+                    perror("open");
+                    //exit(); TODO ????
+                    }
+
+                    while (1) 
+                    {
+                        read_return = read(filefd, buffer, BUFSIZ);
+                        if (read_return == 0)
+                        {
+                            break;
+                        }
+                        if (read_return == -1) 
+                        {
+                            perror("read");
+                            //exit(EXIT_FAILURE);
+                                // TODO implement next??
+                            // 550 Requested action not taken.
+                                    //File unavailable (e.g., file not found, no access).
+                        }
+                        // note using write() for first time...
+                        if (write(datatcpfd, buffer, read_return) == -1) 
+                        {
+                            perror("write");
+                            //exit(EXIT_FAILURE);
+                        }
+                    }
+                    
+                    close(filefd);
+
+                    strcpy(response, "226 Closing data connection. Requested file action successful\n"); 
+
+                    close(datatcpfd);
+                    close(datasockfd);
+
                     isDataConnected = false;
                 }
                 else
