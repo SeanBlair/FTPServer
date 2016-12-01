@@ -517,6 +517,10 @@ void * messageState(void * socket_fd) {
             }
 
 
+
+
+            // TODO:  put this into retr and nlst instead of here.
+            // this is to not block the program as it waits for input... piazza 
             // start listening...
             if (listen(datasockfd, BACKLOG) == -1) 
             {
