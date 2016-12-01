@@ -51,18 +51,19 @@ bool isOneArgs(char * comm)
             (strncmp(comm, "RETR", 4) == 0);
 }
 
+// returns true if the given command takes an optional 2nd argument.
+bool isTwoArgs(char * comm) 
+{
+    return (strncmp(comm, "TYPE", 4) == 0);
+}
+
 // returns true if the given command requires the given argument count
 bool isCorrectArgCount(char * comm, int count) {
+
     if (isZeroArgs(comm)) 
     {
         return count == 0;
     }
-    // allow argument TYPE to provide arguments with spaces
-    // this is to support TYPE A N
-    else if((strncmp(comm, "TYPE", 4) == 0) && ((count == 1) || (count == 2)))
-    {
-        return true;
-    } 
     // all else require one argument
     else
     {
@@ -78,19 +79,18 @@ bool needsLogin(char * comm)
         (strncmp(comm, "USER", 4) == 0));
 }
 
+// TODO change to only look at firs 4 characters. 
+// this is to distinguish between invalid command and 500
+// wrong numger of arguments. 501
+
+
 // returns true if is valid and supported command
 // Zero argument commands are not accepted with added space, 
 // 1 argument commands are accepted with or without a space.
-bool isValidCommand(char * comm, int totalMessageLength) 
+bool isValidCommand(char * comm) 
 {
-    if (totalMessageLength == 6) 
-    {
-        return isZeroArgs(comm) || isOneArgs(comm);
-    } 
-    else 
-    {
-        return isOneArgs(comm) && comm[4] == ' ';
-    }
+
+    return isZeroArgs(comm) || isOneArgs(comm);
 }
 
 
@@ -207,15 +207,19 @@ void * messageState(void * socket_fd) {
         // Commands that take arguments are accepted
         // with or without a space after, commands that
         // take 0 arguments are not accepted with space after.
-        if (buf[4] == ' ') 
-        {
-            command[4] = ' ';
-            command[5] = '\0';  // "USER " 
-        } 
-        else 
-        {
-           command[4] = '\0';   // "USER"
-        }
+
+
+        // if (buf[4] == ' ') 
+        // {
+        //     command[4] = ' ';
+        //     command[5] = '\0';  // "USER " 
+        // } 
+        // else 
+        // {
+        //    command[4] = '\0';   // "USER"
+        // }
+
+        command[4] = '\0';   // "USER"
 
         printf("CSftp: received the following command: [%s]\n",command);
 
@@ -224,24 +228,34 @@ void * messageState(void * socket_fd) {
 
         bufStringLength = strlen(buf);
 
-        //  minimum length with arg is 7: "USER x" plus '\0'        
-        //  (i think CRLF is stripped off by numbytes = recv() -> buf[num[bytes] = '\0')
-        if (bufStringLength < 8) 
+        printf("bufStringLength is == %d", bufStringLength);
+
+        //  length with no arg is 6: "USER x" plus '\0' plus '\n'        
+        if (bufStringLength <= 6)
         {
             argumentCount = 0;
-        } else 
+        } 
+        else 
         {
             // argument = buf minus first 5 characters "USER "
             strncpy(argument, buf + 5, MAXDATASIZE);
-            // no spaces in string, therefore only one argument
-            if (strchr(argument, ' ') == NULL) 
+
+            printf("argument is: %s\n", argument);
+
+            // The first character of the argument is neither a space nor a '\n'
+            char firstArgChar = argument[0];
+            // char charString[4];
+            // charString[0] = firstArgChar;
+            // charString[1] = '\0';
+
+            if (((firstArgChar != ' ') || (firstArgChar != '\n')) && (strlen(argument) > 2))  
             {
                 argumentCount = 1;
             } 
             else 
             {
-                // this indicates a possible TYPE A N command
-                // or could catch an illegal second space after command
+                // this could catch an illegal second space after command
+                // indicates exception path, to be further examined.
                 argumentCount = 2;
             }
         }
@@ -253,7 +267,7 @@ void * messageState(void * socket_fd) {
         // command recognizer/validator
         // need to rethink and possibly refactor. getting messy.
 
-        if (!isValidCommand(command, bufStringLength)) 
+        if (!isValidCommand(command)) 
         {
             strcpy(response, "500 Syntax error, command unrecognized. (!isValidCommand)\n");
         }
@@ -304,24 +318,42 @@ void * messageState(void * socket_fd) {
                 }    
             }            
         } 
-        else if (needsLogin(command) && !isLoggedIn) 
-        {
-            strcpy(response, "530 Not logged in.\n");    
-        }
+
+        // TODO get rid of this line, add it to each relevant part of each command
+        // to ensure order of errors
+        // else if (needsLogin(command) && !isLoggedIn) 
+        // {
+        //     strcpy(response, "530 Not logged in.\n");    
+        // }
         else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
             char typeArg =  toupper( argument[0] );
 
-            // one character argument followed by CRLF
+            // one character argument
             if (strlen(argument) == 3) 
             {
                 if(typeArg == 'I') 
                 {
-                    strcpy(response, "200 Switching to Binary mode.\n");    
+                    if (isLoggedIn)
+                    {
+                        strcpy(response, "200 Switching to Binary mode.\n");    
+                    }
+                    else
+                    {   
+                        strcpy(response, "530 Not logged in.\n");
+                    }
                 }
                 else if (typeArg == 'A') 
                 {
-                    strcpy(response, "200 Switching to ASCII mode.\n");   
+                    if (isLoggedIn)
+                    {
+                        strcpy(response, "200 Switching to ASCII mode.\n");    
+                    }
+                    else
+                    {
+                        strcpy(response, "530 Not logged in.\n");   
+                    }
+                    
                 } 
                 else if ((typeArg == 'L') || (typeArg == 'E')) 
                 {
@@ -331,10 +363,29 @@ void * messageState(void * socket_fd) {
                 {
                     strcpy(response, "501 Syntax error in parameters or arguments.\n");
                 }
-            } 
+            }
             else 
             {
+                if (typeArg == 'A') 
+                {
+                    if (argument[1] == ' ')
+                    {
+                        char typeSecondArg = toupper(argument[2]);
+                        if ((typeSecondArg == 'N') || (typeSecondArg == 'T') || (typeSecondArg == 'C'))
+                        {
+                            strcpy(response, "504 Command not implemented for that parameter.\n");
+                        }
+                        else
+                        {
+                            strcpy(response, "501 Syntax error in parameters or arguments.\n");
+                        }
+                    }
+                }
+                else 
+                {
+
                 strcpy(response, "501 Syntax error in parameters or arguments.\n");
+                }
             }
         }
         else if ((strncmp(command, "MODE", 4) == 0)) 
@@ -345,9 +396,18 @@ void * messageState(void * socket_fd) {
             {
                 if(modeArg == 'S') 
                 {
-                    strcpy(response, "200 Mode set to S.\n");    
+                    if (isLoggedIn)
+                    {
+                        strcpy(response, "200 Mode set to S.\n");        
+                    }
+                    else
+                    {
+                        strcpy(response, "530 Not logged in.\n");    
+                    }
+                    
                 }
-                else if ((modeArg == 'B') || (modeArg == 'C')) {
+                else if ((modeArg == 'B') || (modeArg == 'C')) 
+                {
                     strcpy(response, "504 Command not implemented for that parameter.\n");
                 } 
                 else {
@@ -360,39 +420,58 @@ void * messageState(void * socket_fd) {
         }
         else if ((strncmp(command, "STRU", 4) == 0)) 
         {
+            // TODO: check.
             char struArg = toupper( argument[0] );
             // one character argument followed by CRLF
             if (strlen(argument) == 3) 
             {
                 if(struArg == 'F') 
                 {
-                    strcpy(response, "200 Structure set to F.\n");    
+                    if (isLoggedIn)
+                    {
+                        strcpy(response, "200 Structure set to F.\n");        
+                    }
+                    else
+                    {
+                        strcpy(response, "530 Not logged in.\n");       
+                    }
+                    
                 }
-                else if ((struArg == 'B') || (struArg == 'C')) {
+                else if ((struArg == 'B') || (struArg == 'C')) 
+                {
                     strcpy(response, "504 Command not implemented for that parameter.\n");
                 } 
-                else {
+                else 
+                {
                     strcpy(response, "501 Syntax error in parameters or arguments.\n");
                 }
             } 
-            else {
+            else 
+            {
                 strcpy(response, "501 Syntax error in parameters or arguments.\n");
             } 
         }
         else if ((strncmp(command, "RETR", 4) == 0)) 
         {
-            if (isDataConnected)
-            // accept() datatcpfd, sendFile() on datatcpfd 
+            if (isLoggedIn)
             {
-                strcpy(response, "200 (isDataConnected)\n");   
+                if (isDataConnected)
+            // accept() datatcpfd, sendFile() on datatcpfd 
+                {
+                    strcpy(response, "200 (isDataConnected)\n");   
                 // do the work
                 // close data connection.
                 // close datasocket
-                isDataConnected = false;
+                    isDataConnected = false;
+                }
+                else
+                {
+                    strcpy(response, "425 Use PASV first.\n"); 
+                }
             }
             else
             {
-                strcpy(response, "425 Use PASV first.\n"); 
+                strcpy(response, "530 Not logged in.\n");
             }
         }
         else if ((strncmp(command, "PASV", 4) == 0)) 
@@ -410,6 +489,9 @@ void * messageState(void * socket_fd) {
             // set state.  isDataConnected == true; 
 
             // each call to RETR or NLST must be preceded by a call to PASV.
+
+            if (isLoggedIn)
+            {
 
             if (isDataConnected)
             {   
@@ -530,9 +612,22 @@ void * messageState(void * socket_fd) {
             }
 
             isDataConnected = true; 
+
+        }
+
+        else
+        {
+            strcpy(response, "530 Not logged in.\n");
+        }
+
         }
         else if ((strncmp(command, "NLST", 4) == 0)) 
         {
+
+            if (isLoggedIn) 
+            {
+
+            
             if (isDataConnected) 
             {
                 // used for accept() call
@@ -591,7 +686,14 @@ void * messageState(void * socket_fd) {
             else
             {
                 strcpy(response, "425 Use PASV first.\n"); 
+            }
             } 
+
+
+            else
+            {
+                strcpy(response, "530 Not logged in.\n");
+            }
         }     
         else 
         {
