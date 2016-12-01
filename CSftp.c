@@ -444,45 +444,100 @@ void * messageState(void * socket_fd) {
                         //TODO
                     // Timeout implications??
                     }
+                
 
 
-                    int filefd;
-                    ssize_t read_return;
-                    char buffer[MAXDATASIZE-5];  // TODO look into this logic
+//                 char buf[0x100];
+// snprintf(buf, sizeof(buf), "%s.txt", random_string);
+// FILE *f = fopen(buf, "r");
 
-                    //filefd = open(argument, O_RDONLY);
-                    filefd = open("Makefile", O_RDONLY);
+                    //
+                    FILE *fp = NULL;
 
-                    if (filefd == -1) 
+                    char fileName[MAXDATASIZE - 5];
+                    char buff[MAXDATASIZE - 5];
+
+                    bzero(fileName, 0);
+                    bzero(buff, 0);
+
+                    int  c;
+
+                    //char * fileName = "CSftp.c";
+
+                    snprintf(fileName, sizeof(argument), "%s.txt", argument);
+
+                    char * file = replace_character(fileName, '\n', '\0');
+                    // char * myIpString = replace_character(myIp, '.', ',');
+
+                    printf("filename is: %s", file);
+
+  
+                    fp = fopen(file,"r");
+
+
+                    if(NULL == fp)
                     {
-                    perror("open");
-                    //exit(); TODO ????
+                        printf("\n fopen() Error!!!\n");
+                        //return 1;
                     }
 
-                    while (1) 
+                    while(1)
                     {
-                        read_return = read(filefd, buffer, BUFSIZ);
-                        if (read_return == 0)
-                        {
-                            break;
+                
+                        c = fread(buff, 1, 15, fp);
+
+                        if ( feof(fp) )
+                        { 
+                            break ;
                         }
-                        if (read_return == -1) 
-                        {
-                            perror("read");
-                            //exit(EXIT_FAILURE);
-                                // TODO implement next??
-                            // 550 Requested action not taken.
-                                    //File unavailable (e.g., file not found, no access).
-                        }
-                        // note using write() for first time...
-                        if (write(datatcpfd, buffer, read_return) == -1) 
+                
+                        if (write(datatcpfd, buff, c) == -1) 
                         {
                             perror("write");
                             //exit(EXIT_FAILURE);
                         }
                     }
+
+                    fclose(fp);
+
+
+                    // int filefd;
+                    // //ssize_t read_return;
+                    // char buffer[MAXDATASIZE-5];  // TODO look into this logic
+
+                    // //filefd = open(argument, O_RDONLY);
+                    // filefd = open(&argument, O_RDONLY);
+
+                    // if (filefd == -1) 
+                    // {
+                    // perror("open");
+                    // //exit(); TODO ????
+                    // }
+
+                    // while (1) 
+                    // {
+                    //     read_return = read(filefd, buffer, BUFSIZ);
+                    //     if (read_return == 0)
+                    //     {
+                    //         break;
+                    //     }
+                    //     if (read_return == -1) 
+                    //     {
+                    //         perror("read");
+                    //         //exit(EXIT_FAILURE);
+                    //             // TODO implement next??
+                    //         // 550 Requested action not taken.
+                    //                 //File unavailable (e.g., file not found, no access).
+                    //     }
+                    //     // note using write() for first time...
+                    //     if (write(datatcpfd, buffer, read_return) == -1) 
+                    //     {
+                    //         perror("write");
+                    //         //exit(EXIT_FAILURE);
+                    //     }
+                    // }
                     
-                    close(filefd);
+                    // close(filefd);
 
                     strcpy(response, "226 Closing data connection. Requested file action successful\n"); 
 
