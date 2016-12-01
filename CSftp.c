@@ -20,7 +20,7 @@
 #include <ctype.h>
 
 #define BACKLOG 40      // how many pending connections queue will hold, set higher than needed..
-#define MAXDATASIZE 100 // max number of bytes we can get at once  TODO (look into)
+#define MAXDATASIZE 256 // max number of bytes we can get at once  TODO (look into)
 
 
 // from stack overflow
@@ -549,12 +549,10 @@ void * messageState(void * socket_fd) {
                 }
 
 
-
-
                 // TODO:  put this into retr and nlst instead of here.????
                 // didn't seem to work as the data connection could not be made by the client.
                 // alternatively?? add timeout feature, that blocks for a finite period.
-                // this is to not block the program as it waits for input... piazza 
+
                 // start listening...
                 if (listen(datasockfd, BACKLOG) == -1) 
                 {
