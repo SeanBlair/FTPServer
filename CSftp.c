@@ -24,13 +24,15 @@
 
 
 // from stack overflow
-char * replace_char(char* str, char find, char replace){
-    char *current_pos = strchr(str,find);
-    while (current_pos){
+char * replace_character(char* string, char find, char replace){
+    char *current_pos = strchr(string,find);
+
+    while (current_pos)
+    {
         *current_pos = replace;
         current_pos = strchr(current_pos,find);
     }
-    return str;
+    return string;
 }
 
 // returns true if the given command takes no arguments
@@ -71,25 +73,10 @@ bool isCorrectArgCount(char * comm, int count) {
     }
 }
 
-// returns true if command requires to be logged in
-// requires valid commands, precede by check to isValidCommand(comm);
-bool needsLogin(char * comm) 
-{    
-    return !((strncmp(comm, "QUIT", 4) == 0) || 
-        (strncmp(comm, "USER", 4) == 0));
-}
-
-// TODO change to only look at firs 4 characters. 
-// this is to distinguish between invalid command and 500
-// wrong numger of arguments. 501
-
 
 // returns true if is valid and supported command
-// Zero argument commands are not accepted with added space, 
-// 1 argument commands are accepted with or without a space.
 bool isValidCommand(char * comm) 
 {
-
     return isZeroArgs(comm) || isOneArgs(comm);
 }
 
@@ -202,23 +189,6 @@ void * messageState(void * socket_fd) {
             command[i] = toupper( buf[i]);
         }
 
-        // check next character for ' ' because it implies that 
-        // user sent an argument. Used for validating commands.
-        // Commands that take arguments are accepted
-        // with or without a space after, commands that
-        // take 0 arguments are not accepted with space after.
-
-
-        // if (buf[4] == ' ') 
-        // {
-        //     command[4] = ' ';
-        //     command[5] = '\0';  // "USER " 
-        // } 
-        // else 
-        // {
-        //    command[4] = '\0';   // "USER"
-        // }
-
         command[4] = '\0';   // "USER"
 
         printf("CSftp: received the following command: [%s]\n",command);
@@ -319,12 +289,6 @@ void * messageState(void * socket_fd) {
             }            
         } 
 
-        // TODO get rid of this line, add it to each relevant part of each command
-        // to ensure order of errors
-        // else if (needsLogin(command) && !isLoggedIn) 
-        // {
-        //     strcpy(response, "530 Not logged in.\n");    
-        // }
         else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
             char typeArg =  toupper( argument[0] );
@@ -567,7 +531,7 @@ void * messageState(void * socket_fd) {
 
             printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
             // don't need this
-            char * myIpString = replace_char(myIp, '.', ',');
+            char * myIpString = replace_character(myIp, '.', ',');
             printf("myIpString is: %s\n", myIpString);
 
 
@@ -628,77 +592,78 @@ void * messageState(void * socket_fd) {
             {
 
             
-            if (isDataConnected) 
-            {
-                // used for accept() call
-                socklen_t data_sin_size;
-
-                // used for accept() call
-                struct sockaddr_storage data_their_addr; // connector's address information
-
-                // pull off first queued TCP connection from listening socket
-                // TODO if nothing to do??
-
-                data_sin_size = sizeof data_their_addr;
-                datatcpfd = accept( datasockfd, (struct sockaddr *)&data_their_addr, &data_sin_size);
-                if (datatcpfd == -1) 
+                if (isDataConnected) 
                 {
-                    printf("accept(datasockfd) produced a -1...");
-                     perror("accept");
-                //continue;  // TODO: might need to put this code in loop to use the given continue...??
-                // Does it simply wait until there is a connection???
-                // Timeout implications??
+                    // used for accept() call
+                    socklen_t data_sin_size;
+
+                    // used for accept() call
+                    struct sockaddr_storage data_their_addr; // connector's address information
+
+                    // pull off first queued TCP connection from listening socket
+                    // TODO if nothing to do??
+
+                    data_sin_size = sizeof data_their_addr;
+                    datatcpfd = accept( datasockfd, (struct sockaddr *)&data_their_addr, &data_sin_size);
+                    if (datatcpfd == -1) 
+                    {
+                        printf("accept(datasockfd) produced a -1...");
+                        perror("accept");
+                    //continue;  // TODO: might need to put this code in loop to use the given continue...??
+                    // Does it simply wait until there is a connection???
+                    // Timeout implications??
+                    }
+
+                    if (send(tcpfd, "150 Here comes the directory listing.\n", 38, 0) == -1) 
+                    {
+                        perror("send");
+                        // TODO:    What to send client???
+                        // 450 maybe??
+                    }
+
+
+                    // returns count of files printed
+                    int filesListed = listFiles(datatcpfd, ".");
+                    if (filesListed == -1) 
+                    {
+                        printf("\nlistfiles returned -1 (directory does not exist or you don't have permission)\n");
+                        perror("listFiles");
+                        strcpy(response, "451 Requested action aborted: local error in processing.\n");
+                    }    
+                    else if (filesListed == -2) 
+                    {
+                        printf("\nlistfiles returned -2 (insufficient resources to perform request)\n ");
+                        strcpy(response, "426 Connection closed; transfer aborted.\n");
+                    }
+
+                    printf("\nfiles listed was %d\n", filesListed);
+
+                    // happy case
+                    strcpy(response, "226 Directory send OK.\n");
+
+                    close(datatcpfd);
+                    close(datasockfd);
+
+                    isDataConnected = false;
                 }
-
-                if (send(tcpfd, "150 Here comes the directory listing.\n", 38, 0) == -1) 
+                else
                 {
-                    perror("send");
-                    // TODO:    What to send client???
-                    // 450 maybe??
+                    strcpy(response, "425 Use PASV first.\n"); 
                 }
-
-
-                // returns count of files printed
-                int filesListed = listFiles(datatcpfd, ".");
-                if (filesListed == -1) 
-                {
-                    printf("\nlistfiles returned -1 (directory does not exist or you don't have permission)\n");
-                    perror("listFiles");
-                    strcpy(response, "451 Requested action aborted: local error in processing.\n");
-
-                } 
-                else if (filesListed == -2) 
-                {
-                    printf("\nlistfiles returned -2 (insufficient resources to perform request)\n ");
-                    strcpy(response, "426 Connection closed; transfer aborted.\n");
-                }
-
-                printf("\nfiles listed was %d\n", filesListed);
-
-                // happy case
-                strcpy(response, "226 Directory send OK.\n");
-
-                close(datatcpfd);
-                close(datasockfd);
-
-                isDataConnected = false;
-            }
-            else
-            {
-                strcpy(response, "425 Use PASV first.\n"); 
-            }
             } 
-
 
             else
             {
                 strcpy(response, "530 Not logged in.\n");
             }
-        }     
+
+        } 
+
         else 
         {
             strcpy(response, "500 Syntax error, command unrecognized.\n");
         }
+
 
         if (send(tcpfd, response, MAXDATASIZE, 0) == -1) 
         {
