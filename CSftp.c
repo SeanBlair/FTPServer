@@ -103,7 +103,7 @@ void * messageState(void * socket_fd) {
     int bufStringLength;
     // response message vessel
     char response[MAXDATASIZE];
-    // command received : for holding client command. Ex: "USER" or "USER " ('\0' at end)   
+    // command received : for holding client command. Ex: "USER" ('\0' at end)   
     char command[6];   
     // for argument (total incoming message, without the first 5 characters)
     char argument[MAXDATASIZE];
@@ -126,7 +126,6 @@ void * messageState(void * socket_fd) {
     {
         perror("accept");
         // TODO
-        // Does it simply wait until there is a connection???
         // Timeout implications??
     }
 
@@ -741,7 +740,7 @@ void * messageState(void * socket_fd) {
 }
 
 
-// the listening state of each thread 
+// the listening state
 void * listening(void * socket_fd) 
 {              
     if (listen( *(int*) socket_fd, BACKLOG) == -1) 
@@ -753,10 +752,12 @@ void * listening(void * socket_fd)
 
     // infinite loop accepting connections which will
     // be each handled by a seperate thread.
+    // hopefully OS will implement most of it.
 
     // TODO this is where Acton reccomended to start the thread...
     // TODO start 4 threads
-        
+    // basically, while there is a free thread, execute messageState(socket_fd)
+
     while (1)
     {
         printf("CSftp: in listen state.\n");
