@@ -445,16 +445,6 @@ void * messageState(void * socket_fd) {
                     }
 
 
-                    if (send(tcpfd, "125 Data connection already open; transfer starting.\n", 53, 0) == -1) 
-
-                    {
-                        perror("send");
-                        // TODO:    What to send client???
-                        // 450 maybe??
-                    }
-
-
-
                     //
                     FILE *fp = NULL;
 
@@ -488,6 +478,13 @@ void * messageState(void * socket_fd) {
 
                     if (fp != NULL)
                     {
+                        if (send(tcpfd, "125 Data connection already open; transfer starting.\n", 53, 0) == -1) 
+                        {
+                            perror("send");
+                            // TODO:    What to send client???
+                            // 450 maybe??
+                        }
+
                         while(1)
                         {
                             // TODO look into these numbers, they look suspicious, although the functionality is there.
