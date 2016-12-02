@@ -444,6 +444,17 @@ void * messageState(void * socket_fd) {
                     // Timeout implications??
                     }
 
+
+                    if (send(tcpfd, "125 Data connection already open; transfer starting.\n", 53, 0) == -1) 
+
+                    {
+                        perror("send");
+                        // TODO:    What to send client???
+                        // 450 maybe??
+                    }
+
+
+
                     //
                     FILE *fp = NULL;
 
@@ -475,33 +486,34 @@ void * messageState(void * socket_fd) {
 
                     fp = fopen(file,"r");
 
-                    if(NULL == fp)
+                    if (fp != NULL)
                     {
-                        printf("\n fopen() Error!!!\n");
-                        //return 1;
-                    }
-
-                    while(1)
-                    {
-                        // TODO look into these numbers, they look suspicious, although the functionality is there.
-                        c = fread(buff, 1, 2, fp);
-
-                        if ( feof(fp) )
-                        { 
-                            break ;
-                        }
-                
-                        if (write(datatcpfd, buff, c) == -1) 
+                        while(1)
                         {
-                            perror("write");
-                            //exit(EXIT_FAILURE);
+                            // TODO look into these numbers, they look suspicious, although the functionality is there.
+                            c = fread(buff, 1, 2, fp);
+
+                            if ( feof(fp) )
+                            { 
+                            break ;
+                            }
+                
+                            if (write(datatcpfd, buff, c) == -1) 
+                            {
+                                perror("write");
+                                //exit(EXIT_FAILURE);
+                            }
                         }
+
+                        fclose(fp);
+
+                        strcpy(response, "226 Closing data connection. Requested file action successful\n"); 
                     }
+                    else
+                    {
+                        strcpy(response, "550 Requested action not taken. File unavailable\n");
 
-                    fclose(fp);
-
-
-                    strcpy(response, "226 Closing data connection. Requested file action successful\n"); 
+                    }
 
                     close(datatcpfd);
                     close(datasockfd);
