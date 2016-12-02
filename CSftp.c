@@ -199,7 +199,7 @@ void * messageState(void * socket_fd) {
 
         bufStringLength = strlen(buf);
 
-        printf("bufStringLength is == %d", bufStringLength);
+        printf("bufStringLength is == %d\n", bufStringLength);
 
         //  length with no arg is 6: "USER x" plus '\0' plus '\n'        
         if (bufStringLength <= 6)
@@ -209,15 +209,14 @@ void * messageState(void * socket_fd) {
         else 
         {
             // argument = buf minus first 5 characters "USER "
-            strncpy(argument, buf + 5, MAXDATASIZE);
+            strncpy(argument, buf + 5, MAXDATASIZE - 10);
 
-            printf("argument is: %s\n", argument);
+
+            printf("argument is: =====%s=====\n", argument);
+
 
             // The first character of the argument is neither a space nor a '\n'
             char firstArgChar = argument[0];
-            // char charString[4];
-            // charString[0] = firstArgChar;
-            // charString[1] = '\0';
 
             if (((firstArgChar != ' ') || (firstArgChar != '\n')) && (strlen(argument) > 2))  
             {
@@ -425,7 +424,6 @@ void * messageState(void * socket_fd) {
                 if (isDataConnected)
             // accept() datatcpfd, sendFile() on datatcpfd 
                 {
-
                     // used for accept() call
                     socklen_t rdata_sin_size;
 
@@ -444,36 +442,37 @@ void * messageState(void * socket_fd) {
                         //TODO
                     // Timeout implications??
                     }
-                
-
-
-//                 char buf[0x100];
-// snprintf(buf, sizeof(buf), "%s.txt", random_string);
-// FILE *f = fopen(buf, "r");
 
                     //
                     FILE *fp = NULL;
 
-                    char fileName[MAXDATASIZE - 5];
-                    char buff[MAXDATASIZE - 5];
+                    char fileName[MAXDATASIZE];
+                    char buff[MAXDATASIZE];
 
                     bzero(fileName, 0);
                     bzero(buff, 0);
 
                     int  c;
 
-                    //char * fileName = "CSftp.c";
+                    char * file;
 
-                    snprintf(fileName, sizeof(argument), "%s.txt", argument);
+                    int len = strlen(argument);
+                    printf("length of argument is %d\n", len);
+                    printf("argument is ====%s====\n", argument);
 
-                    char * file = replace_character(fileName, '\n', '\0');
-                    // char * myIpString = replace_character(myIp, '.', ',');
+                    // argument[len-1] == '\0' (end of string)
+                    // but previous character is '\n'.
+                    // need to eliminate this character from argument.
+                    // TODO check if need to add this elsewhere
+                    argument[len-2] = '\0';
 
-                    printf("filename is: %s", file);
+                    printf("After adding a null terminator to argumen[len - 2], argument is ====%s====\n", argument);
 
-  
+                    file = argument;
+
+                    printf("filename is: =====%s=====\n", file);
+
                     fp = fopen(file,"r");
-
 
                     if(NULL == fp)
                     {
@@ -483,8 +482,8 @@ void * messageState(void * socket_fd) {
 
                     while(1)
                     {
-                
-                        c = fread(buff, 1, 15, fp);
+                        // TODO look into these numbers, they look suspicious, although the functionality is there.
+                        c = fread(buff, 1, 2, fp);
 
                         if ( feof(fp) )
                         { 
@@ -500,44 +499,6 @@ void * messageState(void * socket_fd) {
 
                     fclose(fp);
 
-
-                    // int filefd;
-                    // //ssize_t read_return;
-                    // char buffer[MAXDATASIZE-5];  // TODO look into this logic
-
-                    // //filefd = open(argument, O_RDONLY);
-                    // filefd = open(&argument, O_RDONLY);
-
-                    // if (filefd == -1) 
-                    // {
-                    // perror("open");
-                    // //exit(); TODO ????
-                    // }
-
-                    // while (1) 
-                    // {
-                    //     read_return = read(filefd, buffer, BUFSIZ);
-                    //     if (read_return == 0)
-                    //     {
-                    //         break;
-                    //     }
-                    //     if (read_return == -1) 
-                    //     {
-                    //         perror("read");
-                    //         //exit(EXIT_FAILURE);
-                    //             // TODO implement next??
-                    //         // 550 Requested action not taken.
-                    //                 //File unavailable (e.g., file not found, no access).
-                    //     }
-                    //     // note using write() for first time...
-                    //     if (write(datatcpfd, buffer, read_return) == -1) 
-                    //     {
-                    //         perror("write");
-                    //         //exit(EXIT_FAILURE);
-                    //     }
-                    // }
-                    
-                    // close(filefd);
 
                     strcpy(response, "226 Closing data connection. Requested file action successful\n"); 
 
@@ -667,9 +628,7 @@ void * messageState(void * socket_fd) {
                 }
 
 
-                // TODO:  put this into retr and nlst instead of here.????
-                // didn't seem to work as the data connection could not be made by the client.
-                // alternatively?? add timeout feature, that blocks for a finite period.
+                // TODO:  add timeout feature, that blocks for a finite period.
 
                 // start listening...
                 if (listen(datasockfd, BACKLOG) == -1) 
@@ -678,6 +637,9 @@ void * messageState(void * socket_fd) {
                     exit(1);
                     // TODO error??
                 }
+
+                // Joe said to implement timeout. Look at Piazza post on it.
+                // 
 
                 isDataConnected = true; 
 
