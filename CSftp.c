@@ -750,12 +750,19 @@ void * listening(void * socket_fd)
         exit(1);
     }
 
-    printf("CSftp: in listen state.\n");
 
+    // infinite loop accepting connections which will
+    // be each handled by a seperate thread.
 
     // TODO this is where Acton reccomended to start the thread...
     // TODO start 4 threads
-    messageState(socket_fd);
+        
+    while (1)
+    {
+        printf("CSftp: in listen state.\n");
+        messageState(socket_fd);
+    }
+
 
     return;
     // TODO
@@ -836,9 +843,7 @@ int main(int argc, char **argv)
     // maybe/maybe not where thread should be started.
     listening(&sockfd);
 
-    // when QUIT called or errors?
-    // TODO figure it out
-    close(sockfd);
+    // TODO figure out what to do when previous returns...
 
     return 0;
 
