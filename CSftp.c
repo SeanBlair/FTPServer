@@ -258,6 +258,8 @@ void * messageState(void * socket_fd) {
                 perror("send");
                 // TODO:    What to send client???
             }
+
+            printf("CSftp: sent    :  %s",response);
             
             close(tcpfd);
 
