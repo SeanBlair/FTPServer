@@ -124,9 +124,10 @@ void * messageState(void * socket_fd) {
     // Ex: "87.6.0.6"
     char * myIp;
 
+    printf("right before accept...");
 
     // pull off first queued TCP connection from listening socket
-    sin_size = sizeof their_addr;
+    sin_size = sizeof (their_addr);
     tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
     if (tcpfd == -1) 
     {
@@ -135,6 +136,7 @@ void * messageState(void * socket_fd) {
         // Timeout implications??
     }
 
+    printf("right after accept...\n");
 
     // for finding the IP address of the machine running CSftp.o
     struct sockaddr_in sa;
@@ -269,7 +271,8 @@ void * messageState(void * socket_fd) {
             
             close(tcpfd);
 
-            return;
+            // return;
+            pthread_exit(NULL);
         
         }
         else if (strncmp(command, "USER", 4) == 0) 
@@ -758,6 +761,8 @@ void * messageState(void * socket_fd) {
 
 
 // the listening state
+// spawn 4 threads and keeps them busy listening and accepting ftp clients
+
 void * listening(int socket_fd) 
 {              
     if (listen( socket_fd, BACKLOG) == -1) 
@@ -767,35 +772,31 @@ void * listening(int socket_fd)
     }
 
 
-    // infinite loop accepting connections which will
-    // be each handled by a seperate thread.
-    // hopefully OS will implement most of it.
+    printf("CSftp: in listen state.\n");
 
-    // TODO this is where Acton reccomended to start the thread...
-    // TODO start 4 threads
-    // basically, while there is a free thread, execute messageState(socket_fd)
+
+    // infinite loop accepting connections.
+    // Will interact with 4 clients simultaneously, each handled by a seperate thread.
+
     pthread_t thread0;
     pthread_t thread1;
+    pthread_t thread2;
+    pthread_t thread3;
 
+    // While there is a free thread, execute messageState(socket_fd)
+    // Note, no concurrency issues as the server only supports reading.
     while (1)
-    {
+    {    
+    pthread_create(&thread0, NULL, messageState, &socket_fd);
+    pthread_create(&thread1, NULL, messageState, &socket_fd);
+    pthread_create(&thread2, NULL, messageState, &socket_fd);
+    pthread_create(&thread3, NULL, messageState, &socket_fd);
 
-        printf("CSftp: in listen state.\n");
-
-        // messageState(socket_fd);
-        pthread_create(&thread0, NULL, messageState, &socket_fd);
-        
-        pthread_create(&thread1, NULL, messageState, &socket_fd);
-
-        printf("after pthread_create\n");
-
-        pthread_join(thread0, NULL);
-
-        pthread_join(thread1, NULL);
-
-
-        printf("after pthread_join\n");
-    }
+    pthread_join(thread0, NULL);
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+    pthread_join(thread3, NULL);
+    }   
 
     return;
     // TODO
