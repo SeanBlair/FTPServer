@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #define BACKLOG 40      // how many pending connections queue will hold, set higher than needed..
 #define MAXDATASIZE 256 // max number of bytes we can get at once  TODO (look into)
@@ -85,6 +86,9 @@ bool isValidCommand(char * comm)
 // the message state of each thread
 // TODO returns when "quit"  ??
 void * messageState(void * socket_fd) {
+
+    //int socket_fd = (int) *sock_fd;
+
     // this TCP connection file descriptor
     int tcpfd, datasockfd, datatcpfd ;
 
@@ -131,20 +135,20 @@ void * messageState(void * socket_fd) {
 
 
     // for finding the IP address of the machine running CSftp.o
-    struct sockaddr_in sa;
-    int sa_len;
-    sa_len = sizeof(sa);
+    // struct sockaddr_in sa;
+    // int sa_len;
+    // sa_len = sizeof(sa);
 
-    if (getsockname(tcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
-    {
-    perror("getsockname() failed");
-    }
+    // if (getsockname(tcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
+    // {
+    // perror("getsockname() failed");
+    // }
 
-    printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
-    printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+    // printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+    // printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
 
-    myIp = inet_ntoa(sa.sin_addr); 
-    printf("myIp is %s\n", myIp);
+    // myIp = inet_ntoa(sa.sin_addr); 
+    // printf("myIp is %s\n", myIp);
 
 
     // Welcome message to FTP client
@@ -768,12 +772,21 @@ void * listening(void * socket_fd)
     // TODO this is where Acton reccomended to start the thread...
     // TODO start 4 threads
     // basically, while there is a free thread, execute messageState(socket_fd)
+    pthread_t thread0;
 
-    while (1)
-    {
+
+    // while (1)
+    // {
         printf("CSftp: in listen state.\n");
-        messageState(socket_fd);
-    }
+        // messageState(socket_fd);
+        pthread_create(&thread0, NULL, messageState, socket_fd);
+
+        printf("after pthread_create\n");
+    // }
+
+    pthread_join(thread0, NULL);
+
+    printf("after pthread_join\n");
 
 
     return;
