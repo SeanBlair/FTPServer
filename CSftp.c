@@ -87,10 +87,12 @@ bool isValidCommand(char * comm)
 // TODO returns when "quit"  ??
 void * messageState(void * socket_fd) {
 
-    //int socket_fd = (int) *sock_fd;
-
     // this TCP connection file descriptor
-    int tcpfd, datasockfd, datatcpfd ;
+    int tcpfd;
+    // the data socket file descriptor
+    int datasockfd;
+    // the data TCP connection file descriptor
+    int datatcpfd;
 
     // used for accept() call
     socklen_t sin_size;
@@ -135,20 +137,20 @@ void * messageState(void * socket_fd) {
 
 
     // for finding the IP address of the machine running CSftp.o
-    // struct sockaddr_in sa;
-    // int sa_len;
-    // sa_len = sizeof(sa);
+    struct sockaddr_in sa;
+    int sa_len;
+    sa_len = sizeof(sa);
 
-    // if (getsockname(tcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
-    // {
-    // perror("getsockname() failed");
-    // }
+    if (getsockname(tcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
+    {
+    perror("getsockname() failed");
+    }
 
-    // printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
-    // printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+    printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+    printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
 
-    // myIp = inet_ntoa(sa.sin_addr); 
-    // printf("myIp is %s\n", myIp);
+    myIp = inet_ntoa(sa.sin_addr); 
+    printf("myIp is %s\n", myIp);
 
 
     // Welcome message to FTP client
@@ -756,9 +758,9 @@ void * messageState(void * socket_fd) {
 
 
 // the listening state
-void * listening(void * socket_fd) 
+void * listening(int socket_fd) 
 {              
-    if (listen( *(int*) socket_fd, BACKLOG) == -1) 
+    if (listen( socket_fd, BACKLOG) == -1) 
     {
         perror("listen");
         exit(1);
@@ -773,21 +775,27 @@ void * listening(void * socket_fd)
     // TODO start 4 threads
     // basically, while there is a free thread, execute messageState(socket_fd)
     pthread_t thread0;
+    pthread_t thread1;
 
+    while (1)
+    {
 
-    // while (1)
-    // {
         printf("CSftp: in listen state.\n");
+
         // messageState(socket_fd);
-        pthread_create(&thread0, NULL, messageState, socket_fd);
+        pthread_create(&thread0, NULL, messageState, &socket_fd);
+        
+        pthread_create(&thread1, NULL, messageState, &socket_fd);
 
         printf("after pthread_create\n");
-    // }
 
-    pthread_join(thread0, NULL);
+        pthread_join(thread0, NULL);
 
-    printf("after pthread_join\n");
+        pthread_join(thread1, NULL);
 
+
+        printf("after pthread_join\n");
+    }
 
     return;
     // TODO
@@ -866,7 +874,7 @@ int main(int argc, char **argv)
 
     // listen call..
     // maybe/maybe not where thread should be started.
-    listening(&sockfd);
+    listening(sockfd);
 
     // TODO figure out what to do when previous returns...
 
