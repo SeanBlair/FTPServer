@@ -169,8 +169,7 @@ void * messageState(void * socket_fd) {
     if (tcpfd == -1) 
     {
         perror("accept");
-        // TODO
-        // Timeout implications??
+        pthread_exit(NULL);
     }
 
     // for finding the IP address of the machine running CSftp.o
@@ -180,11 +179,12 @@ void * messageState(void * socket_fd) {
 
     if (getsockname(tcpfd, (struct sockaddr * ) &sa, &sa_len) == -1) 
     {
-    perror("getsockname() failed");
+        perror("getsockname() failed");
+        close(tcpfd);
+        pthread_exit(NULL);
     }
 
     printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
-    // printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
 
     myIp = inet_ntoa(sa.sin_addr); 
 
@@ -193,6 +193,8 @@ void * messageState(void * socket_fd) {
     if (send(tcpfd, "220 Service ready for new user.\n", 32, 0) == -1) 
     {
         perror("send");
+        close(tcpfd);
+        pthread_exit(NULL);
     }
 
     // main accept() loop
@@ -726,7 +728,7 @@ void * messageState(void * socket_fd) {
             perror("send");
             // TODO:    What to send client???
         }
-                
+
         printf("CSftp: sent    :  %s",response);
     }
 }
@@ -841,8 +843,6 @@ int main(int argc, char **argv)
 
     // listen call..
     listening(sockfd);
-
-    // TODO figure out what to do when previous returns...
 
     return 0;
 
