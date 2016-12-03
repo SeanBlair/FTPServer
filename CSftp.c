@@ -87,18 +87,18 @@ bool isValidCommand(char * comm, int bufStringLength)
     bool isValid = true;
     int i;
 
-    printf("buffStringLength is %d long\n");
-    // command less than 4 characters
-    if (bufStringLength < 6)
+    printf("buffStringLength is %d long\n", bufStringLength);
+    // command less than 3 characters
+    if (bufStringLength < 5)
     {
-        printf("bufStringLength is < 6\n");
+        printf("bufStringLength is < 5\n");
         isValid = false;
     }
-    else if (bufStringLength >= 6)
+    else if (bufStringLength >= 5)
     {
-        printf("bufStringLength >= 6\n");
-        // check if first 4 characters are all [A-Z, a-z]
-        for (i = 0; i < 4; i++)
+        printf("bufStringLength >= 5\n");
+        // check if first 3 characters are all [A-Z, a-z]
+        for (i = 0; i < 3; i++)
         {
             if (!isalpha(comm[i]))
             {
@@ -107,8 +107,19 @@ bool isValidCommand(char * comm, int bufStringLength)
                 break;
             }
         }
+
+        // If valid so far, and more thatn 3 characters, 
+        // allow fourth character to be either [A-Z, a-z] or == ' ';
+        if (isValid && (bufStringLength >= 6))
+        {
+            if ( !(isalpha(comm[3]) || (comm[3] == ' ')) )
+            {
+                isValid = false;
+            }   
+        }
+
         // if valid so far and more than 4 characters,
-        // check that the 5th character is a space/
+        // check that the 5th character is a space
         if (isValid && (bufStringLength > 6))
         {
             printf("isValid && (bufStringLength > 6 was all true..\n");
@@ -672,7 +683,7 @@ void * messageState(void * socket_fd) {
                 strncat(response, aStr, 3);
                 strncat(response, ",", 1);
                 strncat(response, bStr, 3);
-                strncat(response, ")\n", 2);
+                strncat(response, ")  \n", 2);
 
 
                 freeaddrinfo(servinfo); // all done with this structure
