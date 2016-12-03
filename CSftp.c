@@ -61,25 +61,63 @@ bool isTwoArgs(char * comm)
     return (strncmp(comm, "TYPE", 4) == 0);
 }
 
-// returns true if the given command requires the given argument count
-bool isCorrectArgCount(char * comm, int count) {
-
+// Returns true if the given command requires the given argument count
+// or if not a supported command
+bool isCorrectArgCount(char * comm, int count) 
+{
     if (isZeroArgs(comm)) 
     {
         return count == 0;
     }
     // all else require one argument
-    else
+    else if (isOneArgs(comm))
     {
         return count == 1;
     }
+    else
+        return true;
 }
 
 
-// returns true if is valid and supported command
-bool isValidCommand(char * comm) 
+// returns true if first 4 characters of comm are each [A-Z] or [a-z]
+// and if command longer than 4 characters, the 5th character must be
+// a space.
+bool isValidCommand(char * comm, int bufStringLength) 
 {
-    return isZeroArgs(comm) || isOneArgs(comm);
+    bool isValid = true;
+    int i;
+
+    printf("buffStringLength is %d long\n");
+    // command less than 4 characters
+    if (bufStringLength < 6)
+    {
+        printf("bufStringLength is < 6\n");
+        isValid = false;
+    }
+    else if (bufStringLength >= 6)
+    {
+        printf("bufStringLength >= 6\n");
+        // check if first 4 characters are all [A-Z, a-z]
+        for (i = 0; i < 4; i++)
+        {
+            if (!isalpha(comm[i]))
+            {
+                isValid = false;
+                printf("one of the first 4 characters is not valid\n");
+                break;
+            }
+        }
+        // if valid so far and more than 4 characters,
+        // check that the 5th character is a space/
+        if (isValid && (bufStringLength > 6))
+        {
+            printf("isValid && (bufStringLength > 6 was all true..\n");
+            isValid = comm[4] == ' ';
+        }
+    }
+
+    printf("will return isValid = %d\n", isValid);
+    return isValid;
 }
 
 
@@ -244,7 +282,7 @@ void * messageState(void * socket_fd) {
         // command recognizer/validator
         // need to rethink and possibly refactor. getting messy.
 
-        if (!isValidCommand(command)) 
+        if (!isValidCommand(buf, bufStringLength)) 
         {
             strcpy(response, "500 Syntax error, command unrecognized. (!isValidCommand)\n");
         }
@@ -745,7 +783,7 @@ void * messageState(void * socket_fd) {
 
         else 
         {
-            strcpy(response, "500 Syntax error, command unrecognized.\n");
+            strcpy(response, "502 Command not implemented..\n");
         }
 
 
