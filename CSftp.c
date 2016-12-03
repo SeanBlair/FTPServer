@@ -22,10 +22,10 @@
 #include <pthread.h>
 
 #define BACKLOG 40      // how many pending connections queue will hold, set higher than needed..
-#define MAXDATASIZE 256 // max number of bytes we can get at once  TODO (look into)
+#define MAXDATASIZE 256 // max number of bytes we can get at once
 
 
-// from stack overflow
+// based on Stack Overflow thread...
 char * replace_character(char* string, char find, char replace){
     char *current_pos = strchr(string,find);
 
@@ -74,41 +74,37 @@ bool isCorrectArgCount(char * comm, int count)
     {
         return count == 1;
     }
+    // not suported command case
     else
         return true;
 }
 
 
-// returns true if first 4 characters of comm are each [A-Z] or [a-z]
-// and if command longer than 4 characters, the 5th character must be
-// a space.
+// returns true if first 3 characters of comm are each [A-Z, a-z],
+// 4th character can be a [A-Z, a-z] or space. If command longer than
+// 4 characters, the 5th character must be a space.
 bool isValidCommand(char * comm, int bufStringLength) 
 {
     bool isValid = true;
     int i;
 
-    printf("buffStringLength is %d long\n", bufStringLength);
     // command less than 3 characters
     if (bufStringLength < 5)
     {
-        printf("bufStringLength is < 5\n");
         isValid = false;
     }
     else if (bufStringLength >= 5)
     {
-        printf("bufStringLength >= 5\n");
         // check if first 3 characters are all [A-Z, a-z]
         for (i = 0; i < 3; i++)
         {
             if (!isalpha(comm[i]))
             {
                 isValid = false;
-                printf("one of the first 4 characters is not valid\n");
                 break;
             }
         }
-
-        // If valid so far, and more thatn 3 characters, 
+        // If valid so far, and more than 3 characters, 
         // allow fourth character to be either [A-Z, a-z] or == ' ';
         if (isValid && (bufStringLength >= 6))
         {
@@ -117,23 +113,18 @@ bool isValidCommand(char * comm, int bufStringLength)
                 isValid = false;
             }   
         }
-
         // if valid so far and more than 4 characters,
         // check that the 5th character is a space
         if (isValid && (bufStringLength > 6))
         {
-            printf("isValid && (bufStringLength > 6 was all true..\n");
             isValid = comm[4] == ' ';
         }
     }
-
-    printf("will return isValid = %d\n", isValid);
     return isValid;
 }
 
 
 // the message state of each thread
-// TODO returns when "quit"  ??
 void * messageState(void * socket_fd) {
 
     // this TCP connection file descriptor
@@ -145,8 +136,6 @@ void * messageState(void * socket_fd) {
 
     // used for accept() call
     socklen_t sin_size;
-
-    // used for accept() call
     struct sockaddr_storage their_addr; // connector's address information
     
     // numbytes = bytes received in buf; 
@@ -173,24 +162,6 @@ void * messageState(void * socket_fd) {
     // Ex: "87.6.0.6"
     char * myIp;
 
-    printf("right before accept...");
-
-
-    // fd_set readfds;
-
-    // struct timeval timeout;
-    // timeout.tv_sec = 20;
-    // timeout.tv_usec = 0;
-
-    // // select...
-
-    // rc = select (fdmax+1, &read_fds NULL, NULL, &timeout);
-
-    // if (rc > 0) // process an accept
-    // else {
-    // // If -1 was returned then there was an error of some sort
-    // // If it is 0 then there was a timeout
-    // }
 
     // pull off first queued TCP connection from listening socket
     sin_size = sizeof (their_addr);
@@ -201,8 +172,6 @@ void * messageState(void * socket_fd) {
         // TODO
         // Timeout implications??
     }
-
-    printf("right after accept...\n");
 
     // for finding the IP address of the machine running CSftp.o
     struct sockaddr_in sa;
@@ -215,10 +184,9 @@ void * messageState(void * socket_fd) {
     }
 
     printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
-    printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
+    // printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
 
     myIp = inet_ntoa(sa.sin_addr); 
-    printf("myIp is %s\n", myIp);
 
 
     // Welcome message to FTP client
@@ -241,24 +209,21 @@ void * messageState(void * socket_fd) {
 
         printf("CSftp: in message state\n");
 
-
         // reading client message
         if ((numbytes = recv(tcpfd, buf, MAXDATASIZE-1, 0)) == -1) 
         {            
             perror("recv");
-
             // TODO: What to do here... send message to client???
-            exit(1);
+            //exit(1);
         }
         else if (numbytes == 0)
         {
+            //retry reading.
             break;
         }
 
-        // convert read message into string...
+        // convert read message into string.
         buf[numbytes] = '\0';
-
-        printf("CSftp: received:  %s",buf);
 
         // parse command (first 4 characters of buf).
         // force them to upper case
@@ -276,21 +241,15 @@ void * messageState(void * socket_fd) {
 
         bufStringLength = strlen(buf);
 
-        printf("bufStringLength is == %d\n", bufStringLength);
-
-        //  length with no arg is 6: "USER x" plus '\0' plus '\n'        
+        //  length with no arg is 6: "USER" plus '\0' plus '\n'        
         if (bufStringLength <= 6)
         {
             argumentCount = 0;
         } 
         else 
         {
-            // argument = buf minus first 5 characters "USER "
+            // argument = buf minus first 5 characters
             strncpy(argument, buf + 5, MAXDATASIZE - 10);
-
-
-            printf("argument is: =====%s=====\n", argument);
-
 
             // The first character of the argument is neither a space nor a '\n'
             char firstArgChar = argument[0];
@@ -305,22 +264,18 @@ void * messageState(void * socket_fd) {
                 // indicates exception path, to be further examined.
                 argumentCount = 2;
             }
-        }
-
-
-        printf("The provided command: %s has %d number of arguments\n", command, argumentCount);      
+        }   
 
 
         // command recognizer/validator
-        // need to rethink and possibly refactor. getting messy.
-
+        
         if (!isValidCommand(buf, bufStringLength)) 
         {
-            strcpy(response, "500 Syntax error, command unrecognized. (!isValidCommand)\n");
+            strcpy(response, "500 Syntax error, command unrecognized.\n");
         }
         else if (!isCorrectArgCount(command, argumentCount)) 
         {
-            strcpy(response, "501 Syntax error in parameters or arguments. (!isCorrectArgCount)\n");
+            strcpy(response, "501 Syntax error in parameters or arguments.\n");
         }
         else if (strncmp(command, "QUIT", 4) == 0) 
         {
@@ -342,8 +297,7 @@ void * messageState(void * socket_fd) {
             close(tcpfd);
 
             // return;
-            pthread_exit(NULL);
-        
+            pthread_exit(NULL);     
         }
         else if (strncmp(command, "USER", 4) == 0) 
         {       
@@ -356,7 +310,7 @@ void * messageState(void * socket_fd) {
                 int argumentLength = strlen(argument);
 
             // this checks for equality of first 5 characters of argument, 
-            // and that there were no more characters other than CR LF.
+            // and that there are no more characters.
                 if ((strncmp(argument, "cs317", 5) == 0) && (strlen(argument) == 7)) 
                 {
                     isLoggedIn = true;
@@ -368,7 +322,6 @@ void * messageState(void * socket_fd) {
                 }    
             }            
         } 
-
         else if ((strncmp(command, "TYPE", 4) == 0)) 
         {
             char typeArg =  toupper( argument[0] );
@@ -396,8 +349,7 @@ void * messageState(void * socket_fd) {
                     else
                     {
                         strcpy(response, "530 Not logged in.\n");   
-                    }
-                    
+                    }                   
                 } 
                 else if ((typeArg == 'L') || (typeArg == 'E')) 
                 {
@@ -427,7 +379,6 @@ void * messageState(void * socket_fd) {
                 }
                 else 
                 {
-
                 strcpy(response, "501 Syntax error in parameters or arguments.\n");
                 }
             }
@@ -435,7 +386,7 @@ void * messageState(void * socket_fd) {
         else if ((strncmp(command, "MODE", 4) == 0)) 
         {
             char modeArg = toupper( argument[0] );
-            // one character argument followed by CRLF
+            // one character argument
             if (strlen(argument) == 3) 
             {
                 if(modeArg == 'S') 
@@ -447,8 +398,7 @@ void * messageState(void * socket_fd) {
                     else
                     {
                         strcpy(response, "530 Not logged in.\n");    
-                    }
-                    
+                    }                    
                 }
                 else if ((modeArg == 'B') || (modeArg == 'C')) 
                 {
@@ -478,8 +428,7 @@ void * messageState(void * socket_fd) {
                     else
                     {
                         strcpy(response, "530 Not logged in.\n");       
-                    }
-                    
+                    }                   
                 }
                 else if ((struArg == 'B') || (struArg == 'C')) 
                 {
@@ -496,22 +445,14 @@ void * messageState(void * socket_fd) {
             } 
         }
 
-
         else if ((strncmp(command, "RETR", 4) == 0)) 
         {
             if (isLoggedIn)
             {
                 if (isDataConnected)
-            // accept() datatcpfd, sendFile() on datatcpfd 
                 {
-                    // used for accept() call
                     socklen_t rdata_sin_size;
-
-                    // used for accept() call
-                    struct sockaddr_storage rdata_their_addr; // connector's address information
-
-                    // pull off first queued TCP connection from listening socket
-                    // TODO if nothing to do??
+                    struct sockaddr_storage rdata_their_addr;
 
                     rdata_sin_size = sizeof rdata_their_addr;
                     datatcpfd = accept( datasockfd, (struct sockaddr *)&rdata_their_addr, &rdata_sin_size);
@@ -523,8 +464,6 @@ void * messageState(void * socket_fd) {
                     // Timeout implications??
                     }
 
-
-                    //
                     FILE *fp = NULL;
 
                     char fileName[MAXDATASIZE];
@@ -538,20 +477,13 @@ void * messageState(void * socket_fd) {
                     char * file;
 
                     int len = strlen(argument);
-                    printf("length of argument is %d\n", len);
-                    printf("argument is ====%s====\n", argument);
 
                     // argument[len-1] == '\0' (end of string)
                     // but previous character is '\n'.
                     // need to eliminate this character from argument.
-                    // TODO check if need to add this elsewhere
                     argument[len-2] = '\0';
 
-                    printf("After adding a null terminator to argumen[len - 2], argument is ====%s====\n", argument);
-
                     file = argument;
-
-                    printf("filename is: =====%s=====\n", file);
 
                     fp = fopen(file,"r");
 
@@ -567,7 +499,7 @@ void * messageState(void * socket_fd) {
                         while(1)
                         {
                             // TODO look into these numbers, they look suspicious, although the functionality is there.
-                            c = fread(buff, 1, 2, fp);
+                            c = fread(buff, 1, 52, fp);
 
                             if ( feof(fp) )
                             { 
@@ -588,7 +520,6 @@ void * messageState(void * socket_fd) {
                     else
                     {
                         strcpy(response, "550 Requested action not taken. File unavailable\n");
-
                     }
 
                     close(datatcpfd);
@@ -644,8 +575,6 @@ void * messageState(void * socket_fd) {
                     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
                 }
 
-                //TODO  set timeout...
-
                 // loop through all the results and bind to the first we can
                 for(p = servinfo; p != NULL; p = p->ai_next) 
                 {
@@ -672,7 +601,7 @@ void * messageState(void * socket_fd) {
                     break;
                 }
 
-                // for checking port number of data socket
+                // for getting port number of data socket
 
                 struct sockaddr_in sa;
                 int sa_len;
@@ -683,14 +612,13 @@ void * messageState(void * socket_fd) {
                     perror("getsockname() failed");
                 }
 
-                printf("Local port is: %d\n", (int) ntohs(sa.sin_port));
-                // don't need this
-                char * myIpString = replace_character(myIp, '.', ',');
-                printf("myIpString is: %s\n", myIpString);
-
-
                 int port = (int) ntohs(sa.sin_port);
-                // parse port in FTP pasv connection format
+
+                printf("Local port is: %d\n", port);
+
+                char * myIpString = replace_character(myIp, '.', ',');
+              
+                // convert port to FTP pasv connection format
                 int a = port / 256;
                 char aStr[11];
                 sprintf(aStr, "%d", a);
@@ -705,7 +633,6 @@ void * messageState(void * socket_fd) {
                 strncat(response, ",", 1);
                 strncat(response, bStr, 3);
                 strncat(response, ")\n", 2);
-
 
                 freeaddrinfo(servinfo); // all done with this structure
 
@@ -727,45 +654,29 @@ void * messageState(void * socket_fd) {
                     // TODO error??
                 }
 
-                // Joe said to implement timeout. Look at Piazza post on it.
-                // 
-
                 isDataConnected = true; 
-
             }
-
             else
             {
                 strcpy(response, "530 Not logged in.\n");
             }
-
         }
         else if ((strncmp(command, "NLST", 4) == 0)) 
         {
-
             if (isLoggedIn) 
-            {
-           
+            {       
                 if (isDataConnected) 
                 {
                     // used for accept() call
                     socklen_t data_sin_size;
-
-                    // used for accept() call
-                    struct sockaddr_storage data_their_addr; // connector's address information
-
-                    // pull off first queued TCP connection from listening socket
-                    // TODO if nothing to do??
+                    struct sockaddr_storage data_their_addr;
 
                     data_sin_size = sizeof data_their_addr;
                     datatcpfd = accept( datasockfd, (struct sockaddr *)&data_their_addr, &data_sin_size);
+                    
                     if (datatcpfd == -1) 
                     {
-                        printf("accept(datasockfd) produced a -1...");
                         perror("accept");
-                    //continue;  // TODO: might need to put this code in loop to use the given continue...??
-                    // Does it simply wait until there is a connection???
-                    // Timeout implications??
                     }
 
                     if (send(tcpfd, "150 Here comes the directory listing.\n", 38, 0) == -1) 
@@ -775,22 +686,17 @@ void * messageState(void * socket_fd) {
                         // 450 maybe??
                     }
 
-
                     // returns count of files printed
                     int filesListed = listFiles(datatcpfd, ".");
                     if (filesListed == -1) 
                     {
-                        printf("\nlistfiles returned -1 (directory does not exist or you don't have permission)\n");
                         perror("listFiles");
                         strcpy(response, "451 Requested action aborted: local error in processing.\n");
                     }    
                     else if (filesListed == -2) 
                     {
-                        printf("\nlistfiles returned -2 (insufficient resources to perform request)\n ");
                         strcpy(response, "426 Connection closed; transfer aborted.\n");
                     }
-
-                    printf("\nfiles listed was %d\n", filesListed);
 
                     // happy case
                     strcpy(response, "226 Directory send OK.\n");
@@ -805,26 +711,22 @@ void * messageState(void * socket_fd) {
                     strcpy(response, "425 Use PASV first.\n"); 
                 }
             } 
-
             else
             {
                 strcpy(response, "530 Not logged in.\n");
             }
-
         } 
-
         else 
         {
             strcpy(response, "502 Command not implemented..\n");
         }
-
 
         if (send(tcpfd, response, MAXDATASIZE, 0) == -1) 
         {
             perror("send");
             // TODO:    What to send client???
         }
-        
+                
         printf("CSftp: sent    :  %s",response);
     }
 }
@@ -854,7 +756,6 @@ void * listening(int socket_fd)
     pthread_t thread3;
 
     // While there is a free thread, execute messageState(socket_fd)
-    // Note, no concurrency issues as the server only supports reading.
     while (1)
     {    
     pthread_create(&thread0, NULL, messageState, &socket_fd);
@@ -869,10 +770,6 @@ void * listening(int socket_fd)
     }   
 
     return;
-    // TODO
-    // do something awesome when previous returns?
-    // could return numbers signifying success or errors//
-    // or could simply return when done execution.
 }
 
 
@@ -907,7 +804,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    //TODO  set timeout...
     // loop through all the results and bind to the first we can
     for(p = servinfo; p != NULL; p = p->ai_next) 
     {
@@ -944,7 +840,6 @@ int main(int argc, char **argv)
     }
 
     // listen call..
-    // maybe/maybe not where thread should be started.
     listening(sockfd);
 
     // TODO figure out what to do when previous returns...
