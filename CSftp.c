@@ -37,22 +37,22 @@ char * replace_character(char* string, char find, char replace){
 bool isZeroArgs(char * comm) 
 {
     return (strncmp(comm, "QUIT", 4) == 0) || 
-        (strncmp(comm, "PASV", 4) == 0) || 
-        (strncmp(comm, "NLST", 4) == 0);
+           (strncmp(comm, "PASV", 4) == 0) || 
+           (strncmp(comm, "NLST", 4) == 0);
 }
 
 // returns true if the given command takes one argument 
 bool isOneArgs(char * comm) 
 {
     return (strncmp(comm, "USER", 4) == 0) || 
-            (strncmp(comm, "TYPE", 4) == 0) || 
-            (strncmp(comm, "STRU", 4) == 0) ||
-            (strncmp(comm, "MODE", 4) == 0) || 
-            (strncmp(comm, "RETR", 4) == 0);
+           (strncmp(comm, "TYPE", 4) == 0) || 
+           (strncmp(comm, "STRU", 4) == 0) ||
+           (strncmp(comm, "MODE", 4) == 0) || 
+           (strncmp(comm, "RETR", 4) == 0);
 }
 
 // Returns true if the given command requires the given argument count
-// or if not a supported command
+// or if is not supported.
 bool isCorrectArgCount(char * comm, int count) 
 {
     if (isZeroArgs(comm)) 
