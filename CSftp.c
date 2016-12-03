@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include "dir.h"
 #include "usage.h"
-
-///////  from demo server  ////////
 #include <string.h>
 #include <netdb.h>  
 #include <stdlib.h>
@@ -14,8 +12,6 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
-
-// my addition
 #include <stdbool.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -53,12 +49,6 @@ bool isOneArgs(char * comm)
             (strncmp(comm, "STRU", 4) == 0) ||
             (strncmp(comm, "MODE", 4) == 0) || 
             (strncmp(comm, "RETR", 4) == 0);
-}
-
-// returns true if the given command takes an optional 2nd argument.
-bool isTwoArgs(char * comm) 
-{
-    return (strncmp(comm, "TYPE", 4) == 0);
 }
 
 // Returns true if the given command requires the given argument count
@@ -744,14 +734,10 @@ void * listening(int socket_fd)
         perror("listen");
         exit(1);
     }
-
-
     printf("CSftp: in listen state.\n");
-
 
     // infinite loop accepting connections.
     // Will interact with 4 clients simultaneously, each handled by a seperate thread.
-
     pthread_t thread0;
     pthread_t thread1;
     pthread_t thread2;
@@ -775,10 +761,10 @@ void * listening(int socket_fd)
 }
 
 
-// FTP server
+// FTP server by Sean Blair
 int main(int argc, char **argv) 
 {
-    // some code based on http://beej.us/guide/bgnet/examples/server.c
+    // Some of this code is based on http://beej.us/guide/bgnet/examples/server.c
     
     struct addrinfo hints, *servinfo, *p;
     int yes=1;   
