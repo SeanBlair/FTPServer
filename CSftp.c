@@ -175,6 +175,23 @@ void * messageState(void * socket_fd) {
 
     printf("right before accept...");
 
+
+    // fd_set readfds;
+
+    // struct timeval timeout;
+    // timeout.tv_sec = 20;
+    // timeout.tv_usec = 0;
+
+    // // select...
+
+    // rc = select (fdmax+1, &read_fds NULL, NULL, &timeout);
+
+    // if (rc > 0) // process an accept
+    // else {
+    // // If -1 was returned then there was an error of some sort
+    // // If it is 0 then there was a timeout
+    // }
+
     // pull off first queued TCP connection from listening socket
     sin_size = sizeof (their_addr);
     tcpfd = accept( *(int*) socket_fd, (struct sockaddr *)&their_addr, &sin_size);
@@ -232,6 +249,10 @@ void * messageState(void * socket_fd) {
 
             // TODO: What to do here... send message to client???
             exit(1);
+        }
+        else if (numbytes == 0)
+        {
+            break;
         }
 
         // convert read message into string...
@@ -683,7 +704,7 @@ void * messageState(void * socket_fd) {
                 strncat(response, aStr, 3);
                 strncat(response, ",", 1);
                 strncat(response, bStr, 3);
-                strncat(response, ")  \n", 2);
+                strncat(response, ")\n", 2);
 
 
                 freeaddrinfo(servinfo); // all done with this structure
