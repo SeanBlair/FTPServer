@@ -1,71 +1,76 @@
-Total before late penalty: [/38]
+Total before late penalty: [27/38]
 
 NOTE: in the marking report something left blank (e.g.  [ /6]) typically means
 that you got full marks for that item. 
 
-Functionality: [/28]
+Functionality: [19/28]
 
-   [/1] Working makefile
-   [/1] Accepts port to listen on 
-   [/1] Server does not exit. After completing one client interaction will
+   [1/1] Working makefile
+   [1/1] Accepts port to listen on 
+   [1/1] Server does not exit. After completing one client interaction 
+will
         start a new one. 
    User 
-      [/2] Prompts for login name
+      [2/2] Prompts for login name
 
-      [/1] Rejects improper login name
+      [0/1] Rejects improper login name
 
    Quit 
-      [/1] Closes connection 
+      [1/1] Closes connection 
 
     TYPE
-      [/2] Accepts Type Image and ASCII
-      [/1] Rejects other types
+      [2/2] Accepts Type Image and ASCII
+      [1/1] Rejects other types
 
     MODE
-      [/1] Accepts stream mode
-      [/1] Rejects anything that isn't a stream
+      [1/1] Accepts stream mode
+      [1/1] Rejects anything that isn't a stream
 
     STRU
-      [/1] Accepts file structure type
-      [/1] Rejects non file structure types
+      [1/1] Accepts file structure type
+      [1/1] Rejects non file structure types
 
     PASV 
-      [/1] Sets up port to listen on 
-      [/1] Sends IP address and port in response
-      [/1] Uses a real IP and not localhost (127.0.0.1)
+      [1/1] Sets up port to listen on 
+      [1/1] Sends IP address and port in response
+      [0/1] Uses a real IP and not localhost (127.0.0.1)
     NLST
-      [/1] Sends the listing
+      [0/1] Sends the listing
     RETR
-      [/1] Sends content of file properly
-      [/1] Responds with error if access to file denied
-      [/1] Doesn't attempt to load all of file into memory before sending
+      [0/1] Sends content of file properly
+      [0/1] Responds with error if access to file denied
+      [0/1] Doesn't attempt to load all of file into memory before 
+sending
 
     Error checking
-      [/1] Responds with error 500 for unsupported commands
-      [/1] Responds properly if a command like type or struct doesn't
+      [1/1] Responds with error 500 for unsupported commands
+      [1/1] Responds properly if a command like type or struct doesn't
            have the proper number of arguments
-      [/1] Accept in RETR/NLST will time out
-      [/1] Can handle client closing command connection without sending Quit
-      [/1] Handles case when the amount of data to be written isn't actually
+      [0/1] Accept in RETR/NLST will time out
+      [0/1] Can handle client closing command connection without sending 
+Quit
+      [0/1] Handles case when the amount of data to be written isn't 
+actually
            written (short writes) 
-      [/1] Properly cleans things up so there are no memory leaks.
+      [0/1] Properly cleans things up so there are no memory leaks.
      
     Threads
-      [/1] Allows 4 clients at once
-      [/1] Can process multiple PASV simultanesouly across different 
+      [1/1] Allows 4 clients at once
+      [1/1] Can process multiple PASV simultanesouly across different 
            threads. 
 
 
-Broad Marking Criteria :                     [/9] 
+Broad Marking Criteria :                     [8/9] 
 See below for a detailed description of
 this marking criteria
-     Readability        [/3]
-     Code Documentation [/3]
-     Code Quality       [/3]
+     Readability        [3/3]
+     Code Documentation [3/3]
+     Code Quality       [2/3]
 
 
 MARKER'S ADDITIONAL COMMENTS:
-
+- Problem with logging in in program. Most point are graded based on 
+code reading. 
 
 
 ----------------------- Non Functional Criteria
